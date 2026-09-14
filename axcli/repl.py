@@ -8,11 +8,13 @@ from axcli.executor import run
 from axcli.ansi import strip
 
 
-def start_repl(binary: str, audio: bool = False) -> int:
+def start_repl(binary: str, domain: str = "color") -> int:
     """Start an interactive AI session wrapping the given binary."""
     from axcli.intent import _get_provider
+    from axcli.detect import needs_accessible_mode
     provider = _get_provider()
 
+    audio = domain == "audio"
     speaker = None
     earcons = None
     listener = None
@@ -24,6 +26,9 @@ def start_repl(binary: str, audio: bool = False) -> int:
         if not speaker.available:
             print("error: No TTS engine found. Install espeak-ng (Linux) or use macOS say.")
             return 1
+
+    # Determine output formatting mode
+    use_screen_reader = domain == "screen-reader" or needs_accessible_mode()
 
     mode_label = f"using {provider}" + (", audio enabled" if audio else "")
     if provider:
@@ -132,6 +137,11 @@ def start_repl(binary: str, audio: bool = False) -> int:
         # Execute
         result = run(argv)
 
+        # Show raw output with domain formatting (before AI summary)
+        if result.stdout.strip() and not use_screen_reader and not audio:
+            from axcli.colorize import colorize as _colorize
+            print(_colorize(strip(result.stdout)), end="" if result.stdout.endswith("\n") else "\n")
+
         # Summarize with AI
         stdout_clean = strip(result.stdout)
         stderr_clean = strip(result.stderr)
@@ -143,7 +153,15 @@ def start_repl(binary: str, audio: bool = False) -> int:
 
         summary = summarize_output(cmd_str, stdout_clean, stderr_clean, result.exit_code)
 
-        output_text = f"result: {summary.summary}"
+        # Apply domain-specific formatting to the summary
+        if use_screen_reader:
+            # Screen reader: labeled text with prefixes
+            output_text = f"result: {summary.summary}"
+        else:
+            # Sighted: colorize status words in the summary
+            from axcli.colorize import colorize
+            output_text = colorize(summary.summary)
+
         print(output_text)
 
         if speaker:

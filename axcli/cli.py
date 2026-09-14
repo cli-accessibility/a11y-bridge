@@ -92,7 +92,7 @@ def main() -> int:
     if askai:
         binary = cmd_args[0]
         from axcli.repl import start_repl
-        return start_repl(binary, audio=(domain == "audio"))
+        return start_repl(binary, domain=domain)
 
     # Pipe-safe: raw output when stdout is not a TTY
     if not sys.stdout.isatty():
