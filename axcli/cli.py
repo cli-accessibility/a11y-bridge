@@ -20,7 +20,7 @@ Adaptive behavior:
 Options:
   --domain color        Apply color & visual accessibility (default)
   --domain screen-reader  Force screen reader mode (labels, tables, symbols)
-  --domain audio        Pipe output through text-to-speech (future)
+  --domain audio        Speak output via text-to-speech (espeak-ng/say)
   --askai               Start an AI-powered interactive session
   --raw                 Strip ANSI only, no reformatting
   --passthrough         Just set NO_COLOR=1 TERM=dumb, no processing
@@ -87,7 +87,7 @@ def main() -> int:
     if askai:
         binary = cmd_args[0]
         from axcli.repl import start_repl
-        return start_repl(binary)
+        return start_repl(binary, audio=(domain == "audio"))
 
     # Pipe-safe: raw output when stdout is not a TTY
     if not sys.stdout.isatty():
@@ -125,9 +125,31 @@ def main() -> int:
         a11y_stderr, _ = accessible(result.stderr)
         output = format_output(a11y_stdout, a11y_stderr, result.exit_code, stdout_sem)
     elif domain == "audio":
-        # Future: TTS output
-        print("error: audio domain not yet implemented. Use --domain color or --domain screen-reader.")
-        return 1
+        # Audio mode: screen reader formatting + TTS
+        from axcli.audio import Speaker, Earcons
+        speaker = Speaker()
+        earcons = Earcons()
+        if not speaker.available:
+            print("error: No TTS engine found. Install espeak-ng (Linux) or use macOS say.")
+            return 1
+        a11y_stdout, stdout_sem = accessible(result.stdout)
+        a11y_stderr, _ = accessible(result.stderr)
+        output = format_output(a11y_stdout, a11y_stderr, result.exit_code, stdout_sem)
+        if output:
+            print(output)
+            if result.exit_code != 0:
+                earcons.error()
+            else:
+                earcons.success()
+            for line in output.splitlines():
+                if line.strip():
+                    speaker.enqueue(line)
+        # Wait for speech to finish
+        import time
+        while not speaker._queue.empty() or (speaker._proc and speaker._proc.poll() is None):
+            time.sleep(0.1)
+        speaker.shutdown()
+        return result.exit_code
     else:
         # Sighted mode: add color to plain output
         stdout = strip(result.stdout)
