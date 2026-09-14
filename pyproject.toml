@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "a11y-bridge"
-version = "0.1.0"
+version = "0.2.0"
 description = "Accessible CLI wrapper — makes any command-line tool screen-reader friendly"
 requires-python = ">=3.11"
 license = "Apache-2.0"
