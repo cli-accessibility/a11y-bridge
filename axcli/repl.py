@@ -8,13 +8,15 @@ from axcli.executor import run
 from axcli.ansi import strip
 
 
-def start_repl(binary: str, domain: str = "color") -> int:
+def start_repl(binary: str, domains: set[str] | None = None) -> int:
     """Start an interactive AI session wrapping the given binary."""
     from axcli.intent import _get_provider
     from axcli.detect import needs_accessible_mode
     provider = _get_provider()
 
-    audio = domain == "audio"
+    if domains is None:
+        domains = {"color"}
+    audio = "audio" in domains
     speaker = None
     earcons = None
     listener = None
@@ -28,7 +30,7 @@ def start_repl(binary: str, domain: str = "color") -> int:
             return 1
 
     # Determine output formatting mode
-    use_screen_reader = domain == "screen-reader" or needs_accessible_mode()
+    use_screen_reader = "screen-reader" in domains or needs_accessible_mode()
 
     mode_label = f"using {provider}" + (", audio enabled" if audio else "")
     # Style helpers — no ANSI in screen reader / audio mode

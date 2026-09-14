@@ -54,7 +54,7 @@ def main() -> int:
         return run_setup()
 
     # Parse axcli's own flags
-    domain = "color"
+    domains = {"color"}  # default
     mode = "adaptive"
     askai = False
     cmd_start = 0
@@ -62,7 +62,7 @@ def main() -> int:
     i = 0
     while i < len(args):
         if args[i] == "--domain" and i + 1 < len(args):
-            domain = args[i + 1]
+            domains = {d.strip() for d in args[i + 1].split(",")}
             i += 2
             cmd_start = i
         elif args[i] == "--askai":
@@ -92,7 +92,7 @@ def main() -> int:
     if askai:
         binary = cmd_args[0]
         from axcli.repl import start_repl
-        return start_repl(binary, domain=domain)
+        return start_repl(binary, domains=domains)
 
     # Pipe-safe: raw output when stdout is not a TTY
     if not sys.stdout.isatty():
@@ -124,12 +124,12 @@ def main() -> int:
         return result.exit_code
 
     # Adaptive mode: detect context and apply appropriate enhancement
-    if domain == "screen-reader" or needs_accessible_mode():
+    if "screen-reader" in domains or needs_accessible_mode():
         # Screen reader mode: strip color, add text labels, convert tables
         a11y_stdout, stdout_sem = accessible(result.stdout)
         a11y_stderr, _ = accessible(result.stderr)
         output = format_output(a11y_stdout, a11y_stderr, result.exit_code, stdout_sem)
-    elif domain == "audio":
+    elif "audio" in domains:
         # Audio mode: screen reader formatting + TTS
         from axcli.audio import Speaker, Earcons
         speaker = Speaker()
