@@ -24,7 +24,7 @@ class Speaker:
         self._thread = threading.Thread(target=self._worker, daemon=True)
         self._thread.start()
         self._enabled = self._engine is not None
-        self._rate = int(os.environ.get("AXCLI_TTS_RATE", "280"))
+        self._rate = int(os.environ.get("AXCLI_TTS_RATE", "170"))
 
     @property
     def available(self) -> bool:
@@ -72,11 +72,22 @@ class Speaker:
 
     def _speak_sync(self, text: str):
         """Speak text synchronously (called from worker thread)."""
+        import re
+
         # Strip labels for cleaner speech
         text = text.replace("result: ", "").replace("status: ", "").replace("error: ", "error, ")
         # Strip ANSI
-        import re
         text = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", text)
+        # Shorten URLs — say "link to example.com" instead of the full URL
+        text = re.sub(r"https?://([^/\s]+)\S*", r"link to \1", text)
+        # Shorten SHA hashes (>12 hex chars) — say "hash" instead of reading 64 chars
+        text = re.sub(r"\b[a-f0-9]{12,}\b", "hash", text)
+        # Shorten image digests (sha256:abc123...)
+        text = re.sub(r"sha256:[a-f0-9]+", "digest", text)
+        # Clean up repeated dots/dashes
+        text = re.sub(r"[.\-_]{3,}", " ", text)
+        # Clean up multiple spaces
+        text = re.sub(r"\s{2,}", " ", text)
 
         if not text.strip():
             return
