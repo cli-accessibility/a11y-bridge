@@ -8,12 +8,27 @@ from axcli.executor import run
 from axcli.ansi import strip
 
 
-def start_repl(binary: str) -> int:
+def start_repl(binary: str, audio: bool = False) -> int:
     """Start an interactive AI session wrapping the given binary."""
     from axcli.intent import _get_provider
     provider = _get_provider()
+
+    speaker = None
+    earcons = None
+    if audio:
+        from axcli.audio import Speaker, Earcons
+        speaker = Speaker()
+        earcons = Earcons()
+        if not speaker.available:
+            print("error: No TTS engine found. Install espeak-ng (Linux) or use macOS say.")
+            return 1
+
+    mode_label = f"using {provider}" + (", audio enabled" if audio else "")
     if provider:
-        print(f"axcli: AI session for '{binary}' (using {provider}). Type natural language or raw commands.")
+        msg = f"axcli: AI session for '{binary}' ({mode_label}). Type natural language or raw commands."
+        print(msg)
+        if speaker:
+            speaker.speak(f"AI session for {binary}. Audio enabled.")
     else:
         print(f"axcli: AI session for '{binary}'. WARNING: No AI provider configured.")
         print(f"axcli: Set AXCLI_AI_KEY and AXCLI_AI_PROVIDER, or start Ollama.")
@@ -106,16 +121,26 @@ def start_repl(binary: str) -> int:
 
         if result.exit_code != 0 and stderr_clean:
             print(f"error: Command failed (exit {result.exit_code})")
+            if earcons:
+                earcons.error()
 
         summary = summarize_output(cmd_str, stdout_clean, stderr_clean, result.exit_code)
 
         output_text = f"result: {summary.summary}"
         print(output_text)
 
+        if speaker:
+            if result.exit_code == 0 and earcons:
+                earcons.success()
+            speaker.speak(summary.summary)
+
         if summary.next_actions:
+            actions_text = "You could try: " + ". ".join(summary.next_actions)
             print("axcli: You could try:")
             for i, action in enumerate(summary.next_actions, 1):
                 print(f"  {i}. {action}")
+            if speaker:
+                speaker.speak(actions_text)
 
         last_output = output_text
 
