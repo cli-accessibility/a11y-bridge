@@ -161,7 +161,7 @@ def start_repl(binary: str, audio: bool = False) -> int:
             for i, action in enumerate(summary.next_actions, 1):
                 print(f"  {i}. {action}")
             if speaker:
-                speaker.speak(actions_text)
+                speaker.enqueue(actions_text)
 
         last_output = output_text
 
