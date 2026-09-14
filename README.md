@@ -47,13 +47,13 @@ The core package has zero dependencies. Install only the domains you need:
 
 ```bash
 # Core only — color, screen reader, table formatting (zero deps)
-pip install axcli
+pip install a11y-cli
 
 # With audio — TTS (Piper natural voice) + STT (Vosk voice input)
-pip install axcli[audio]
+pip install a11y-cli[audio]
 
 # Everything
-pip install axcli[all]
+pip install a11y-cli[all]
 ```
 
 The AI mode (`--askai`) needs an API key but no extra pip packages — it uses stdlib urllib.
@@ -214,7 +214,7 @@ you: quit
 After installing, run `axcli setup` to check prerequisites and download models:
 
 ```bash
-pip install axcli[audio]
+pip install a11y-cli[audio]
 axcli setup
 ```
 
@@ -306,9 +306,9 @@ Python 3.11 or later.
 
 | Install | What you get | Dependencies |
 |---|---|---|
-| `pip install axcli` | Color, screen reader mode, table formatting | None (stdlib only) |
-| `pip install axcli[audio]` | + TTS (Piper natural voice) + STT (Vosk voice input) | piper-tts, vosk |
-| `pip install axcli[all]` | Everything above | piper-tts, vosk |
+| `pip install a11y-cli` | Color, screen reader mode, table formatting | None (stdlib only) |
+| `pip install a11y-cli[audio]` | + TTS (Piper natural voice) + STT (Vosk voice input) | piper-tts, vosk |
+| `pip install a11y-cli[all]` | Everything above | piper-tts, vosk |
 | `--askai` flag | + AI interactive mode (natural language → commands) | None (set `AXCLI_AI_KEY`) |
 
 Audio also needs system packages: `espeak-ng` (Linux, usually pre-installed) or Piper voice model (~60MB, one-time download).
