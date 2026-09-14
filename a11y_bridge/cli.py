@@ -1,17 +1,17 @@
 """CLI entry point — adaptive accessibility based on user context."""
 import sys
-from axcli.executor import run
-from axcli.formatter import format_output
-from axcli.ansi import accessible, strip
-from axcli.colorize import colorize
-from axcli.detect import needs_accessible_mode
+from a11y_bridge.executor import run
+from a11y_bridge.formatter import format_output
+from a11y_bridge.ansi import accessible, strip
+from a11y_bridge.colorize import colorize
+from a11y_bridge.detect import needs_accessible_mode
 
 
 USAGE = """\
-axcli -- accessible CLI wrapper
+a11y-bridge -- accessible CLI wrapper
 
 Usage:
-  axcli [options] <command> [args...]
+  a11y-bridge [options] <command> [args...]
 
 Adaptive behavior:
   Sighted user (TTY, no screen reader) → adds color to plain output
@@ -29,11 +29,11 @@ Options:
   setup                 Check prerequisites and download models
 
 Examples:
-  axcli oc get pods -n myns
-  axcli --domain color gh pr list
-  axcli --domain screen-reader oc projects
-  axcli --askai gh                          # AI interactive session
-  axcli --raw kubectl logs my-pod
+  a11y-bridge oc get pods -n myns
+  a11y-bridge --domain color gh pr list
+  a11y-bridge --domain screen-reader oc projects
+  a11y-bridge --askai gh                          # AI interactive session
+  a11y-bridge --raw kubectl logs my-pod
 """
 
 
@@ -45,15 +45,15 @@ def main() -> int:
         return 0
 
     if args[0] == "--version":
-        from axcli import __version__
-        print(f"axcli {__version__}")
+        from a11y_bridge import __version__
+        print(f"a11y-bridge {__version__}")
         return 0
 
     if args[0] == "setup":
-        from axcli.setup import run_setup
+        from a11y_bridge.setup import run_setup
         return run_setup()
 
-    # Parse axcli's own flags
+    # Parse a11y-bridge's own flags
     domains = {"color"}  # default
     mode = "adaptive"
     askai = False
@@ -91,7 +91,7 @@ def main() -> int:
     # --askai mode: interactive AI session
     if askai:
         binary = cmd_args[0]
-        from axcli.repl import start_repl
+        from a11y_bridge.repl import start_repl
         return start_repl(binary, domains=domains)
 
     # Pipe-safe: raw output when stdout is not a TTY
@@ -131,7 +131,7 @@ def main() -> int:
         output = format_output(a11y_stdout, a11y_stderr, result.exit_code, stdout_sem)
     elif "audio" in domains:
         # Audio mode: screen reader formatting + TTS
-        from axcli.audio import Speaker, Earcons
+        from a11y_bridge.audio import Speaker, Earcons
         speaker = Speaker()
         earcons = Earcons()
         if not speaker.available:

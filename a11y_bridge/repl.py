@@ -2,16 +2,16 @@
 import sys
 import readline  # enables arrow keys, history in input()
 
-from axcli.intent import get_intent, summarize_output
-from axcli.safety import classify
-from axcli.executor import run
-from axcli.ansi import strip
+from a11y_bridge.intent import get_intent, summarize_output
+from a11y_bridge.safety import classify
+from a11y_bridge.executor import run
+from a11y_bridge.ansi import strip
 
 
 def start_repl(binary: str, domains: set[str] | None = None) -> int:
     """Start an interactive AI session wrapping the given binary."""
-    from axcli.intent import _get_provider
-    from axcli.detect import needs_accessible_mode
+    from a11y_bridge.intent import _get_provider
+    from a11y_bridge.detect import needs_accessible_mode
     provider = _get_provider()
 
     if domains is None:
@@ -21,7 +21,7 @@ def start_repl(binary: str, domains: set[str] | None = None) -> int:
     earcons = None
     listener = None
     if audio:
-        from axcli.audio import Speaker, Earcons, Listener
+        from a11y_bridge.audio import Speaker, Earcons, Listener
         speaker = Speaker()
         earcons = Earcons()
         listener = Listener()
@@ -44,14 +44,14 @@ def start_repl(binary: str, domains: set[str] | None = None) -> int:
         voice_hint = ""
         if listener and listener.available:
             voice_hint = " Type 'v' to use voice input."
-        print(f"{B}axcli{R} {D}— AI session for{R} {B}{binary}{R} {D}({mode_label}){R}")
+        print(f"{B}a11y-bridge{R} {D}— AI session for{R} {B}{binary}{R} {D}({mode_label}){R}")
         if voice_hint:
             print(f"{D}{voice_hint.strip()}{R}")
         if speaker:
             speaker.speak(f"AI session for {binary}. Audio enabled.")
     else:
-        print(f"{B}axcli{R} {D}— AI session for{R} {B}{binary}{R}")
-        print(f"{YE}WARNING: No AI provider configured. Set AXCLI_AI_KEY and AXCLI_AI_PROVIDER.{R}")
+        print(f"{B}a11y-bridge{R} {D}— AI session for{R} {B}{binary}{R}")
+        print(f"{YE}WARNING: No AI provider configured. Set A11Y_AI_KEY and A11Y_AI_PROVIDER.{R}")
     print(f"{D}Type 'quit' to exit, 'help' for options.{R}")
     print()
 
@@ -90,7 +90,7 @@ def start_repl(binary: str, domains: set[str] | None = None) -> int:
                 earcons.received()
             text = listener.listen()
             if not text:
-                print("axcli: No speech detected. Try again or type your command.")
+                print("a11y-bridge: No speech detected. Try again or type your command.")
                 continue
             print(f"heard: {text}")
             if speaker:
@@ -105,7 +105,7 @@ def start_repl(binary: str, domains: set[str] | None = None) -> int:
                         if line.strip():
                             speaker.enqueue(line)
             else:
-                print("axcli: Nothing to repeat.")
+                print("a11y-bridge: Nothing to repeat.")
             continue
 
         # Numbered shortcut: "1", "2", "run 1", "run 2", "try 1"
@@ -130,7 +130,7 @@ def start_repl(binary: str, domains: set[str] | None = None) -> int:
                     user_input = suggestion
                 print(f"{D}→ {user_input}{R}")
             else:
-                print(f"axcli: No suggestion #{shortcut_num}. Valid: 1-{len(last_suggestions)}")
+                print(f"a11y-bridge: No suggestion #{shortcut_num}. Valid: 1-{len(last_suggestions)}")
                 continue
 
         # Detect raw command vs natural language
@@ -148,7 +148,7 @@ def start_repl(binary: str, domains: set[str] | None = None) -> int:
                 continue
 
             if not intent.command:
-                print(f"axcli: {intent.explanation or 'Could not determine a command for that request.'}")
+                print(f"a11y-bridge: {intent.explanation or 'Could not determine a command for that request.'}")
                 continue
 
             argv = [binary] + intent.command
@@ -203,7 +203,7 @@ def start_repl(binary: str, domains: set[str] | None = None) -> int:
             output_text = f"result: {summary.summary}"
             print(output_text)
         else:
-            from axcli.colorize import colorize
+            from a11y_bridge.colorize import colorize
             print()
             output_text = colorize(summary.summary)
             print(output_text)
@@ -224,7 +224,7 @@ def start_repl(binary: str, domains: set[str] | None = None) -> int:
         if last_suggestions:
             actions_text = "You could try: " + ". ".join(last_suggestions)
             if use_screen_reader:
-                print("axcli: You could try:")
+                print("a11y-bridge: You could try:")
                 for i, action in enumerate(last_suggestions, 1):
                     print(f"  {i}. {action}")
             else:
@@ -288,7 +288,7 @@ def _try_raw_command(user_input: str, binary: str) -> list[str] | None:
 
 
 def _print_help(voice_available: bool = False):
-    print("""axcli AI session commands:
+    print("""a11y-bridge AI session commands:
 
   Type natural language:
     "show me my pull requests"

@@ -1,12 +1,12 @@
 # CLI-ACS Coverage
 
-axcli compensates for all 15 criteria in the CLI-ACS Color & Visual Presentation domain (CV-1 through CV-15).
+a11y-bridge compensates for all 15 criteria in the CLI-ACS Color & Visual Presentation domain (CV-1 through CV-15).
 
 ## How It Works
 
-The CLI-ACS conformance suite (`cli-acs`) evaluates whether a CLI binary meets accessibility criteria. axcli compensates for failures — if a binary fails a criterion, axcli applies the fix at runtime.
+The CLI-ACS conformance suite (`cli-acs`) evaluates whether a CLI binary meets accessibility criteria. a11y-bridge compensates for failures — if a binary fails a criterion, a11y-bridge applies the fix at runtime.
 
-For example, if `oc` fails CV-1 (color as sole information channel), axcli detects the color codes and adds text prefixes so a screen reader user gets `[ERROR] connection refused` instead of just red text.
+For example, if `oc` fails CV-1 (color as sole information channel), a11y-bridge detects the color codes and adds text prefixes so a screen reader user gets `[ERROR] connection refused` instead of just red text.
 
 ## Coverage Matrix
 

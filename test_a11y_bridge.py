@@ -1,6 +1,6 @@
-"""Tests for axcli accessible CLI wrapper."""
-from axcli.ansi import accessible, strip, _replace_symbols, _extract_hyperlinks, _detect_line_semantic
-from axcli.formatter import format_output, _try_parse_table
+"""Tests for a11y-bridge accessible CLI wrapper."""
+from a11y_bridge.ansi import accessible, strip, _replace_symbols, _extract_hyperlinks, _detect_line_semantic
+from a11y_bridge.formatter import format_output, _try_parse_table
 
 
 # --- CV-2/4/5: ANSI stripping ---
@@ -137,7 +137,7 @@ def test_full_pipeline_colored_table():
     assert "[WARN]" in out  # yellow row
 
 def test_full_pipeline_error_with_color():
-    from axcli.ansi import accessible_simple
+    from a11y_bridge.ansi import accessible_simple
     raw = "\x1b[31mfatal: remote origin already exists.\x1b[0m\n"
     a11y = accessible_simple(raw)
     out = format_output("", a11y, 1)

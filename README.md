@@ -1,4 +1,4 @@
-# axcli
+# a11y-bridge
 
 Make any CLI tool accessible. Zero config, zero dependencies.
 
@@ -14,13 +14,13 @@ Most CLI tools don't have built-in accessibility features. Even when they do, th
 
 ## The Solution
 
-axcli wraps any CLI binary and adapts its output to the user's needs:
+a11y-bridge wraps any CLI binary and adapts its output to the user's needs:
 
 ```bash
-axcli oc get pods -n myns
+a11y-bridge oc get pods -n myns
 ```
 
-That's it. axcli detects who you are and adapts:
+That's it. a11y-bridge detects who you are and adapts:
 
 **Sighted user** (normal terminal) — adds semantic color:
 
@@ -71,36 +71,36 @@ pip install .[all]         # everything
 Or run without installing:
 
 ```bash
-python -m axcli oc get pods
+python -m a11y_bridge oc get pods
 ```
 
 ## Usage
 
-Prefix any command with `axcli`:
+Prefix any command with `a11y-bridge`:
 
 ```bash
-axcli oc get pods -n myns
-axcli gh pr list
-axcli kubectl get deployments
-axcli docker ps
-axcli git status
+a11y-bridge oc get pods -n myns
+a11y-bridge gh pr list
+a11y-bridge kubectl get deployments
+a11y-bridge docker ps
+a11y-bridge git status
 ```
 
-axcli detects your context automatically. To force a specific mode:
+a11y-bridge detects your context automatically. To force a specific mode:
 
 ```bash
 # Force screen reader mode
-axcli --domain screen-reader oc get pods
+a11y-bridge --domain screen-reader oc get pods
 
 # Force it via environment
-NO_COLOR=1 axcli oc get pods
-AXCLI_SCREEN_READER=1 axcli oc get pods
+NO_COLOR=1 a11y-bridge oc get pods
+A11Y_SCREEN_READER=1 a11y-bridge oc get pods
 
 # Strip ANSI only, no reformatting
-axcli --raw kubectl logs my-pod
+a11y-bridge --raw kubectl logs my-pod
 
 # Just set NO_COLOR=1 TERM=dumb, don't touch output
-axcli --passthrough git diff
+a11y-bridge --passthrough git diff
 ```
 
 ## AI-Powered Interactive Mode
@@ -108,11 +108,11 @@ axcli --passthrough git diff
 Start a conversational session where you describe what you want in plain language:
 
 ```bash
-axcli --askai gh
+a11y-bridge --askai gh
 ```
 
 ```
-axcli: AI session for 'gh'. Type natural language or raw commands.
+a11y-bridge: AI session for 'gh'. Type natural language or raw commands.
 
 you: show me my open pull requests
 status: List open pull requests
@@ -120,7 +120,7 @@ status: Running: gh pr list
 result: 3 open pull requests. #123 "Fix login bug" updated yesterday,
         #456 "Add dark mode" updated 3 days ago, #789 "Refactor auth"
         updated last week.
-axcli: You could try:
+a11y-bridge: You could try:
   1. View details of a specific PR
   2. Check CI status of a PR
 
@@ -149,8 +149,8 @@ Set your AI provider via environment variables:
 
 ```bash
 # Option 1: Generic key (recommended)
-export AXCLI_AI_KEY=your-api-key-here
-export AXCLI_AI_PROVIDER=anthropic    # or: openai, ollama
+export A11Y_AI_KEY=your-api-key-here
+export A11Y_AI_PROVIDER=anthropic    # or: openai, ollama
 
 # Option 2: Provider-specific keys (also works)
 export ANTHROPIC_API_KEY=your-key     # for Claude
@@ -160,14 +160,14 @@ export OPENAI_API_KEY=your-key        # for OpenAI/compatible
 # Install: https://ollama.com/download
 ollama serve                              # start the server
 ollama pull qwen2.5-coder:7b-instruct    # download a model (~4.7GB, one-time)
-# axcli auto-detects Ollama on localhost:11434
+# a11y-bridge auto-detects Ollama on localhost:11434
 ```
 
 Optional settings:
 
 ```bash
-export AXCLI_AI_URL=http://localhost:11434   # custom API endpoint
-export AXCLI_MODEL=claude-sonnet-4-6            # specific model name
+export A11Y_AI_URL=http://localhost:11434   # custom API endpoint
+export A11Y_MODEL=claude-sonnet-4-6            # specific model name
 ```
 
 ### Safety
@@ -188,20 +188,20 @@ Speak results aloud and use voice input — fully offline using Piper (natural v
 
 ```bash
 # Command output spoken aloud
-axcli --domain audio gh pr list
+a11y-bridge --domain audio gh pr list
 
 # AI session with voice — results spoken, type 'v' to speak input
-axcli --domain audio --askai gh
+a11y-bridge --domain audio --askai gh
 ```
 
 ```
-axcli: AI session for 'gh' (using anthropic, audio enabled). Type 'v' to use voice input.
+a11y-bridge: AI session for 'gh' (using anthropic, audio enabled). Type 'v' to use voice input.
 
 you: list all my repos
 (each repo spoken one by one in a natural voice)
 
 you: v
-axcli: Listening... (speak now, press Ctrl+C to stop)
+a11y-bridge: Listening... (speak now, press Ctrl+C to stop)
 heard: show my pull requests
 status: Running: gh pr list
 (results spoken aloud)
@@ -211,11 +211,11 @@ you: quit
 
 ### Quick setup
 
-After installing, run `axcli setup` to check prerequisites and download models:
+After installing, run `a11y-bridge setup` to check prerequisites and download models:
 
 ```bash
 pip install a11y-bridge[audio]
-axcli setup
+a11y-bridge setup
 ```
 
 This checks for system packages, Python packages, and offers to download the TTS and STT models automatically.
@@ -246,8 +246,8 @@ brew install espeak-ng
 pip install piper-tts
 
 # Download voice model + config (~60MB, one-time, both files required)
-mkdir -p ~/.cache/axcli/piper
-cd ~/.cache/axcli/piper
+mkdir -p ~/.cache/a11y-bridge/piper
+cd ~/.cache/a11y-bridge/piper
 curl -sL https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx -o en_US-lessac-medium.onnx
 curl -sL https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json -o en_US-lessac-medium.onnx.json
 ```
@@ -259,8 +259,8 @@ curl -sL https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/les
 pip install vosk
 
 # Download speech recognition model (~50MB, one-time)
-mkdir -p ~/.cache/axcli
-cd ~/.cache/axcli
+mkdir -p ~/.cache/a11y-bridge
+cd ~/.cache/a11y-bridge
 curl -sL https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip -o model.zip
 unzip -q model.zip && mv vosk-model-small-en-us-0.15 vosk-model && rm model.zip
 ```
@@ -270,15 +270,15 @@ Requires `arecord` (Linux ALSA) or `sox` for microphone recording.
 ### Audio settings
 
 ```bash
-export AXCLI_TTS_RATE=170            # Words per minute (default 170)
-export AXCLI_TTS_ENGINE=espeak-ng    # Force engine: piper, espeak-ng, say, none
+export A11Y_TTS_RATE=170            # Words per minute (default 170)
+export A11Y_TTS_ENGINE=espeak-ng    # Force engine: piper, espeak-ng, say, none
 ```
 
 Engine priority: Piper (natural) > espeak-ng (robotic, fast) > say (macOS).
 
 ## How It Works
 
-In **wrapper mode** (default), axcli is a thin wrapper that does not use AI. Under the hood:
+In **wrapper mode** (default), a11y-bridge is a thin wrapper that does not use AI. Under the hood:
 
 1. Runs your command with `NO_COLOR=1` and `TERM=dumb` to suppress color at source
 2. Captures stdout and stderr
@@ -309,15 +309,15 @@ Python 3.11 or later.
 | `pip install a11y-bridge` | Color, screen reader mode, table formatting | None (stdlib only) |
 | `pip install a11y-bridge[audio]` | + TTS (Piper natural voice) + STT (Vosk voice input) | piper-tts, vosk |
 | `pip install a11y-bridge[all]` | Everything above | piper-tts, vosk |
-| `--askai` flag | + AI interactive mode (natural language → commands) | None (set `AXCLI_AI_KEY`) |
+| `--askai` flag | + AI interactive mode (natural language → commands) | None (set `A11Y_AI_KEY`) |
 
 Audio also needs system packages: `espeak-ng` (Linux, usually pre-installed) or Piper voice model (~60MB, one-time download).
 
 ## Documentation
 
 - [Configuration and reference](docs/configuration.md) — all options, AI setup, environment variables, safety levels, color maps, symbol tables
-- [CLI-ACS coverage](docs/cli-acs-coverage.md) — how axcli maps to the CLI-ACS conformance specification
-- [Using axcli with oc](docs/oc-accessibility-guide.md) — real-world OpenShift CLI examples with before/after
+- [CLI-ACS coverage](docs/cli-acs-coverage.md) — how a11y-bridge maps to the CLI-ACS conformance specification
+- [Using a11y-bridge with oc](docs/oc-accessibility-guide.md) — real-world OpenShift CLI examples with before/after
 
 ## License
 

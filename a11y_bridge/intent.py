@@ -30,18 +30,18 @@ def _get_provider() -> str:
     """Detect LLM provider from environment.
 
     Priority:
-    1. AXCLI_AI_PROVIDER env var (explicit: "anthropic", "openai", "ollama")
-    2. AXCLI_AI_KEY + AXCLI_AI_URL → provider auto-detected from URL
+    1. A11Y_AI_PROVIDER env var (explicit: "anthropic", "openai", "ollama")
+    2. A11Y_AI_KEY + A11Y_AI_URL → provider auto-detected from URL
     3. Provider-specific keys (ANTHROPIC_API_KEY, OPENAI_API_KEY)
     4. Ollama running locally
     """
-    explicit = os.environ.get("AXCLI_AI_PROVIDER", "").lower()
+    explicit = os.environ.get("A11Y_AI_PROVIDER", "").lower()
     if explicit:
         return explicit
 
     # Generic key — detect provider from URL
-    if os.environ.get("AXCLI_AI_KEY"):
-        url = os.environ.get("AXCLI_AI_URL", "")
+    if os.environ.get("A11Y_AI_KEY"):
+        url = os.environ.get("A11Y_AI_URL", "")
         if "anthropic" in url:
             return "anthropic"
         if "openai" in url or "api.openai" in url:
@@ -56,7 +56,7 @@ def _get_provider() -> str:
         return "openai"
 
     # Try local Ollama
-    url = os.environ.get("AXCLI_AI_URL", "http://localhost:11434")
+    url = os.environ.get("A11Y_AI_URL", "http://localhost:11434")
     try:
         urllib.request.urlopen(f"{url}/api/tags", timeout=2)
         return "ollama"
@@ -68,7 +68,7 @@ def _get_provider() -> str:
 def _get_api_key() -> str:
     """Get API key from generic or provider-specific env var."""
     return (
-        os.environ.get("AXCLI_AI_KEY")
+        os.environ.get("A11Y_AI_KEY")
         or os.environ.get("ANTHROPIC_API_KEY")
         or os.environ.get("OPENAI_API_KEY")
         or ""
@@ -78,7 +78,7 @@ def _get_api_key() -> str:
 def _call_anthropic(messages: list[dict], system: str) -> str:
     key = _get_api_key()
     body = json.dumps({
-        "model": os.environ.get("AXCLI_MODEL", "claude-sonnet-4-6"),
+        "model": os.environ.get("A11Y_MODEL", "claude-sonnet-4-6"),
         "max_tokens": 1024,
         "system": system,
         "messages": messages,
@@ -103,7 +103,7 @@ def _call_anthropic(messages: list[dict], system: str) -> str:
 
 def _call_openai_compatible(messages: list[dict], system: str, url: str, key: str) -> str:
     msgs = [{"role": "system", "content": system}] + messages
-    model = os.environ.get("AXCLI_MODEL", "gpt-4o-mini")
+    model = os.environ.get("A11Y_MODEL", "gpt-4o-mini")
     body = json.dumps({"model": model, "messages": msgs, "max_tokens": 1024}).encode()
     req = urllib.request.Request(
         f"{url}/chat/completions",
@@ -119,8 +119,8 @@ def _call_openai_compatible(messages: list[dict], system: str, url: str, key: st
 
 
 def _call_ollama(messages: list[dict], system: str) -> str:
-    url = os.environ.get("AXCLI_AI_URL", "http://localhost:11434")
-    model = os.environ.get("AXCLI_MODEL", "qwen2.5-coder:7b-instruct")
+    url = os.environ.get("A11Y_AI_URL", "http://localhost:11434")
+    model = os.environ.get("A11Y_MODEL", "qwen2.5-coder:7b-instruct")
     msgs = [{"role": "system", "content": system}] + messages
     body = json.dumps({"model": model, "messages": msgs, "stream": False}).encode()
     req = urllib.request.Request(f"{url}/api/chat", data=body, headers={"Content-Type": "application/json"})
@@ -138,18 +138,18 @@ def _call_llm(messages: list[dict], system: str) -> str:
     provider = _get_provider()
     if not provider:
         raise ConnectionError(
-            "No LLM available. Set AXCLI_AI_KEY and AXCLI_AI_PROVIDER, or start Ollama locally."
+            "No LLM available. Set A11Y_AI_KEY and A11Y_AI_PROVIDER, or start Ollama locally."
         )
     if provider == "anthropic":
         return _call_anthropic(messages, system)
     elif provider == "openai":
-        url = os.environ.get("AXCLI_AI_URL", os.environ.get("AXCLI_AI_URL", "https://api.openai.com/v1"))
+        url = os.environ.get("A11Y_AI_URL", os.environ.get("A11Y_AI_URL", "https://api.openai.com/v1"))
         return _call_openai_compatible(messages, system, url, _get_api_key())
     elif provider == "ollama":
         return _call_ollama(messages, system)
     else:
         raise ConnectionError(
-            "No LLM available. Set AXCLI_AI_KEY and AXCLI_AI_PROVIDER, or start Ollama locally."
+            "No LLM available. Set A11Y_AI_KEY and A11Y_AI_PROVIDER, or start Ollama locally."
         )
 
 

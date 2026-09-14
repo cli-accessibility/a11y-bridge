@@ -26,9 +26,9 @@ classifiers = [
 
 # Core package: zero dependencies (color domain, screen reader mode, table formatting)
 # Optional domains installed separately:
-#   pip install axcli[audio]  — TTS (piper) + STT (vosk)
-#   pip install axcli[askai]  — AI interactive mode (httpx for cleaner API calls)
-#   pip install axcli[all]    — everything
+#   pip install a11y-bridge[audio]  — TTS (piper) + STT (vosk)
+#   pip install a11y-bridge[askai]  — AI interactive mode (httpx for cleaner API calls)
+#   pip install a11y-bridge[all]    — everything
 
 [project.optional-dependencies]
 audio = [
@@ -42,7 +42,7 @@ all = [
 ]
 
 [project.scripts]
-axcli = "axcli.cli:main"
+a11y-bridge = "a11y_bridge.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/cli-accessibility/a11y-bridge"
