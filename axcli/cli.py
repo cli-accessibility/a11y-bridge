@@ -143,7 +143,7 @@ def main() -> int:
                 earcons.success()
             for line in output.splitlines():
                 if line.strip():
-                    speaker.speak(line)
+                    speaker.enqueue(line)
         # Wait for speech to finish
         import time
         while not speaker._queue.empty() or (speaker._proc and speaker._proc.poll() is None):

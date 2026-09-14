@@ -149,11 +149,11 @@ def start_repl(binary: str, audio: bool = False) -> int:
         if speaker:
             if result.exit_code == 0 and earcons:
                 earcons.success()
-            # Speak line by line — piper chokes on large blocks
+            # Enqueue line by line — enqueue doesn't interrupt previous lines
             for line in summary.summary.splitlines():
                 line = line.strip()
                 if line:
-                    speaker.speak(line)
+                    speaker.enqueue(line)
 
         if summary.next_actions:
             actions_text = "You could try: " + ". ".join(summary.next_actions)

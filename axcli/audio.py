@@ -37,6 +37,12 @@ class Speaker:
         self._interrupt()
         self._queue.put(text)
 
+    def enqueue(self, text: str):
+        """Queue text without interrupting current speech. Use for multi-line output."""
+        if not self._enabled:
+            return
+        self._queue.put(text)
+
     def stop(self):
         """Stop current speech immediately."""
         self._interrupt()
