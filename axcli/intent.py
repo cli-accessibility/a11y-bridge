@@ -174,14 +174,15 @@ User: "create an issue about the login bug" → {{"command": ["issue", "create",
 SUMMARY_SYSTEM = """You are summarizing CLI output for a user who may be using a screen reader or audio interface.
 
 Rules:
-- Lead with the key result in one sentence
+- Lead with the count and key result in one sentence
+- Then LIST every item by name, one per line, numbered
 - Use plain language, no jargon
 - Use cardinal numbers ("3 pods") not ordinal ("the third pod")
-- If there are items, count them and list the most important ones
+- If there are more than 20 items, list the first 15 and say "and N more"
 - If there are errors, explain what went wrong and what to do
 - Suggest 1-2 natural follow-up actions the user might want
-- Keep the summary under 5 sentences
 - Return JSON: {{"summary": "...", "next_actions": ["...", "..."]}}
+- The summary field should contain the full listing with newlines
 - Return ONLY valid JSON
 """
 
