@@ -138,6 +138,98 @@ class Earcons:
             pass
 
 
+class Listener:
+    """Push-to-talk speech-to-text using Vosk.
+
+    Usage:
+        listener = Listener()
+        if listener.available:
+            text = listener.listen()  # blocks until user stops speaking
+    """
+
+    def __init__(self):
+        self._model = None
+        self._available = False
+        try:
+            import vosk
+            vosk.SetLogLevel(-1)  # suppress vosk logs
+            model_path = os.path.expanduser("~/.cache/axcli/vosk-model")
+            if os.path.isdir(model_path):
+                self._model = vosk.Model(model_path)
+                self._available = True
+        except ImportError:
+            pass
+        except Exception:
+            pass
+
+    @property
+    def available(self) -> bool:
+        return self._available
+
+    def listen(self, timeout: float = 10.0) -> str:
+        """Record from microphone and return recognized text.
+
+        Listens until silence is detected or timeout reached.
+        Returns empty string on failure.
+        """
+        if not self._available:
+            return ""
+
+        try:
+            import vosk
+            import wave
+            import tempfile
+
+            # Record audio using arecord (Linux) or sox
+            duration = int(timeout)
+            tmpfile = tempfile.mktemp(suffix=".wav")
+
+            # Try arecord first (ALSA), then sox (cross-platform)
+            if shutil.which("arecord"):
+                rec_cmd = [
+                    "arecord", "-q", "-f", "S16_LE", "-r", "16000",
+                    "-c", "1", "-d", str(duration), tmpfile,
+                ]
+            elif shutil.which("sox"):
+                rec_cmd = [
+                    "sox", "-q", "-d", "-r", "16000", "-c", "1",
+                    "-b", "16", tmpfile, "trim", "0", str(duration),
+                ]
+            else:
+                return ""
+
+            print("axcli: Listening... (speak now, press Ctrl+C to stop)")
+            try:
+                proc = subprocess.run(rec_cmd, timeout=timeout + 2, capture_output=True)
+            except subprocess.TimeoutExpired:
+                pass
+            except KeyboardInterrupt:
+                # User pressed Ctrl+C to stop recording — this is expected
+                pass
+
+            if not os.path.exists(tmpfile):
+                return ""
+
+            # Recognize
+            rec = vosk.KaldiRecognizer(self._model, 16000)
+            with wave.open(tmpfile, "rb") as wf:
+                while True:
+                    data = wf.readframes(4000)
+                    if len(data) == 0:
+                        break
+                    rec.AcceptWaveform(data)
+
+            os.unlink(tmpfile)
+
+            result = rec.FinalResult()
+            import json
+            text = json.loads(result).get("text", "")
+            return text.strip()
+
+        except Exception:
+            return ""
+
+
 def _detect_tts_engine() -> str | None:
     """Detect available TTS engine."""
     explicit = os.environ.get("AXCLI_TTS_ENGINE", "").lower()

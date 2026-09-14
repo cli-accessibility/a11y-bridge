@@ -15,17 +15,22 @@ def start_repl(binary: str, audio: bool = False) -> int:
 
     speaker = None
     earcons = None
+    listener = None
     if audio:
-        from axcli.audio import Speaker, Earcons
+        from axcli.audio import Speaker, Earcons, Listener
         speaker = Speaker()
         earcons = Earcons()
+        listener = Listener()
         if not speaker.available:
             print("error: No TTS engine found. Install espeak-ng (Linux) or use macOS say.")
             return 1
 
     mode_label = f"using {provider}" + (", audio enabled" if audio else "")
     if provider:
-        msg = f"axcli: AI session for '{binary}' ({mode_label}). Type natural language or raw commands."
+        voice_hint = ""
+        if listener and listener.available:
+            voice_hint = " Type 'v' to use voice input."
+        msg = f"axcli: AI session for '{binary}' ({mode_label}).{voice_hint} Type natural language or raw commands."
         print(msg)
         if speaker:
             speaker.speak(f"AI session for {binary}. Audio enabled.")
@@ -53,8 +58,20 @@ def start_repl(binary: str, audio: bool = False) -> int:
             return 0
 
         if user_input.lower() == "help":
-            _print_help()
+            _print_help(listener is not None and listener.available)
             continue
+
+        if user_input.lower() == "v" and listener and listener.available:
+            if earcons:
+                earcons.received()
+            text = listener.listen()
+            if not text:
+                print("axcli: No speech detected. Try again or type your command.")
+                continue
+            print(f"heard: {text}")
+            if speaker:
+                speaker.speak(f"I heard: {text}")
+            user_input = text
 
         if user_input.lower() == "repeat":
             if last_output:
@@ -194,7 +211,7 @@ def _try_raw_command(user_input: str, binary: str) -> list[str] | None:
     return None
 
 
-def _print_help():
+def _print_help(voice_available: bool = False):
     print("""axcli AI session commands:
 
   Type natural language:
@@ -210,5 +227,7 @@ def _print_help():
   Session commands:
     repeat    — repeat the last output
     help      — show this help
-    quit      — end the session
-""")
+    quit      — end the session""")
+    if voice_available:
+        print("    v         — voice input (speak your command)")
+    print()
