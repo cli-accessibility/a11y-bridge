@@ -62,7 +62,7 @@ From source:
 
 ```bash
 git clone https://github.com/cli-accessibility/a11y-bridge.git
-cd axcli
+cd a11y-bridge
 pip install .              # core only
 pip install .[audio]       # with audio
 pip install .[all]         # everything
