@@ -157,8 +157,10 @@ export ANTHROPIC_API_KEY=your-key     # for Claude
 export OPENAI_API_KEY=your-key        # for OpenAI/compatible
 
 # Option 3: Local Ollama (no key needed)
-# Just start Ollama: ollama serve
-# axcli auto-detects it on localhost:11434
+# Install: https://ollama.com/download
+ollama serve                              # start the server
+ollama pull qwen2.5-coder:7b-instruct    # download a model (~4.7GB, one-time)
+# axcli auto-detects Ollama on localhost:11434
 ```
 
 Optional settings:
@@ -207,33 +209,52 @@ status: Running: gh pr list
 you: quit
 ```
 
-### Audio setup
+### Audio prerequisites
 
-TTS works out of the box if espeak-ng is installed (most Linux systems). For natural-sounding voice:
+**System packages needed** (install once):
 
 ```bash
-# Install Piper neural TTS (optional, recommended)
+# Linux (Fedora/RHEL)
+sudo dnf install espeak-ng pulseaudio-utils  # TTS engine + paplay for audio output
+
+# Linux (Ubuntu/Debian)
+sudo apt install espeak-ng pulseaudio-utils  # TTS engine + paplay for audio output
+
+# For voice input (microphone recording):
+sudo dnf install alsa-utils   # provides arecord (Fedora/RHEL)
+sudo apt install alsa-utils   # provides arecord (Ubuntu/Debian)
+
+# macOS — espeak-ng via Homebrew, or use built-in 'say'
+brew install espeak-ng
+```
+
+### Piper (natural voice) setup
+
+```bash
+# Install Piper neural TTS (optional, recommended over espeak-ng)
 pip install piper-tts
 
-# Download a voice model (~60MB, one-time)
+# Download voice model + config (~60MB, one-time, both files required)
 mkdir -p ~/.cache/axcli/piper
 cd ~/.cache/axcli/piper
 curl -sL https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx -o en_US-lessac-medium.onnx
 curl -sL https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json -o en_US-lessac-medium.onnx.json
 ```
 
-For voice input:
+### Voice input (Vosk STT) setup
 
 ```bash
-# Install Vosk STT (optional)
+# Install Vosk speech-to-text
 pip install vosk
 
-# Download speech model (~50MB, one-time)
+# Download speech recognition model (~50MB, one-time)
 mkdir -p ~/.cache/axcli
 cd ~/.cache/axcli
 curl -sL https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip -o model.zip
 unzip -q model.zip && mv vosk-model-small-en-us-0.15 vosk-model && rm model.zip
 ```
+
+Requires `arecord` (Linux ALSA) or `sox` for microphone recording.
 
 ### Audio settings
 
