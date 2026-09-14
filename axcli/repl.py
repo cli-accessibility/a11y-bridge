@@ -119,7 +119,15 @@ def start_repl(binary: str, domains: set[str] | None = None) -> int:
         if shortcut_num is not None and last_suggestions:
             idx = shortcut_num - 1
             if 0 <= idx < len(last_suggestions):
-                user_input = last_suggestions[idx]
+                suggestion = last_suggestions[idx]
+                # Extract command from suggestion text like "Run 'gh repo view foo'"
+                import re
+                cmd_match = re.search(r"['\"]([^'\"]+)['\"]", suggestion)
+                if cmd_match:
+                    user_input = cmd_match.group(1)
+                else:
+                    # No quoted command — pass the whole suggestion to AI
+                    user_input = suggestion
                 print(f"{D}→ {user_input}{R}")
             else:
                 print(f"axcli: No suggestion #{shortcut_num}. Valid: 1-{len(last_suggestions)}")
