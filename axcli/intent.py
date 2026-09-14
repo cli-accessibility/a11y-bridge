@@ -120,7 +120,8 @@ def _call_ollama(messages: list[dict], system: str) -> str:
     msgs = [{"role": "system", "content": system}] + messages
     body = json.dumps({"model": model, "messages": msgs, "stream": False}).encode()
     req = urllib.request.Request(f"{url}/api/chat", data=body, headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=60) as resp:
+    # ponytail: 180s timeout — first call loads model into GPU memory, can take 30-90s
+    with urllib.request.urlopen(req, timeout=180) as resp:
         data = json.loads(resp.read())
     return data["message"]["content"]
 
@@ -193,10 +194,12 @@ def get_intent(user_input: str, binary: str, context: list[dict] | None = None) 
             is_read_only=data.get("is_read_only", False),
             confidence=data.get("confidence", 0.8),
         )
-    except (ConnectionError, urllib.error.URLError) as e:
+    except (ConnectionError, urllib.error.URLError, TimeoutError) as e:
         return IntentResult(command=[], explanation="", error=f"LLM unavailable: {e}")
     except (json.JSONDecodeError, KeyError) as e:
         return IntentResult(command=[], explanation="", error=f"LLM returned invalid response: {e}")
+    except Exception as e:
+        return IntentResult(command=[], explanation="", error=f"LLM error: {e}")
 
 
 def summarize_output(command: str, stdout: str, stderr: str, exit_code: int) -> SummaryResult:
