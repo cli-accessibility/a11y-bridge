@@ -220,7 +220,7 @@ class Listener:
             try:
                 from faster_whisper import WhisperModel
                 model_size = os.environ.get("A11Y_WHISPER_MODEL", "medium")
-                print(f"a11y-bridge: Loading Whisper {model_size} model (first load downloads ~1.5GB)...")
+                print(f"a11y-bridge: Loading Whisper {model_size} model...")
                 self._whisper_model = WhisperModel(model_size, device="cpu", compute_type="int8")
                 self._available = True
             except Exception as e:
