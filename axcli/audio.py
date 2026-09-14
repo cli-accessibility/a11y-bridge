@@ -222,11 +222,10 @@ class Listener:
     def available(self) -> bool:
         return self._available
 
-    def listen(self, timeout: float = 10.0) -> str:
+    def listen(self) -> str:
         """Record from microphone and return recognized text.
 
-        Listens until silence is detected or timeout reached.
-        Returns empty string on failure.
+        Records until user presses Enter. Returns empty string on failure.
         """
         if not self._available:
             return ""
@@ -235,33 +234,39 @@ class Listener:
             import vosk
             import wave
             import tempfile
+            import threading
 
-            # Record audio using arecord (Linux) or sox
-            duration = int(timeout)
             tmpfile = tempfile.mktemp(suffix=".wav")
 
-            # Try arecord first (ALSA), then sox (cross-platform)
+            # Record indefinitely — no -d flag
             if shutil.which("arecord"):
                 rec_cmd = [
                     "arecord", "-q", "-f", "S16_LE", "-r", "16000",
-                    "-c", "1", "-d", str(duration), tmpfile,
+                    "-c", "1", tmpfile,
                 ]
             elif shutil.which("sox"):
                 rec_cmd = [
                     "sox", "-q", "-d", "-r", "16000", "-c", "1",
-                    "-b", "16", tmpfile, "trim", "0", str(duration),
+                    "-b", "16", tmpfile,
                 ]
             else:
                 return ""
 
-            print("axcli: Listening... (speak now, press Ctrl+C to stop)")
+            print("axcli: Listening... (press Enter when done)")
+            proc = subprocess.Popen(rec_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            # Wait for Enter in a thread-safe way
             try:
-                proc = subprocess.run(rec_cmd, timeout=timeout + 2, capture_output=True)
+                input()
+            except (EOFError, KeyboardInterrupt):
+                pass
+
+            # Stop recording
+            proc.terminate()
+            try:
+                proc.wait(timeout=2)
             except subprocess.TimeoutExpired:
-                pass
-            except KeyboardInterrupt:
-                # User pressed Ctrl+C to stop recording — this is expected
-                pass
+                proc.kill()
 
             if not os.path.exists(tmpfile):
                 return ""
