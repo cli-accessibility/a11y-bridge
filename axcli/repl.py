@@ -8,11 +8,15 @@ from axcli.executor import run
 from axcli.ansi import strip
 
 
-def start_repl(binary: str, audio: bool = False) -> int:
+def start_repl(binary: str, domains: set[str] | None = None) -> int:
     """Start an interactive AI session wrapping the given binary."""
     from axcli.intent import _get_provider
+    from axcli.detect import needs_accessible_mode
     provider = _get_provider()
 
+    if domains is None:
+        domains = {"color"}
+    audio = "audio" in domains
     speaker = None
     earcons = None
     listener = None
@@ -25,36 +29,56 @@ def start_repl(binary: str, audio: bool = False) -> int:
             print("error: No TTS engine found. Install espeak-ng (Linux) or use macOS say.")
             return 1
 
+    # Determine output formatting mode
+    use_screen_reader = "screen-reader" in domains or needs_accessible_mode()
+
     mode_label = f"using {provider}" + (", audio enabled" if audio else "")
+    # Style helpers — no ANSI in screen reader / audio mode
+    B = "\x1b[1m" if not use_screen_reader else ""   # bold
+    D = "\x1b[2m" if not use_screen_reader else ""   # dim
+    R = "\x1b[0m" if not use_screen_reader else ""   # reset
+    RE = "\x1b[31m" if not use_screen_reader else ""  # red
+    YE = "\x1b[33m" if not use_screen_reader else "" # yellow
+
     if provider:
         voice_hint = ""
         if listener and listener.available:
             voice_hint = " Type 'v' to use voice input."
-        msg = f"axcli: AI session for '{binary}' ({mode_label}).{voice_hint} Type natural language or raw commands."
-        print(msg)
+        print(f"{B}axcli{R} {D}— AI session for{R} {B}{binary}{R} {D}({mode_label}){R}")
+        if voice_hint:
+            print(f"{D}{voice_hint.strip()}{R}")
         if speaker:
             speaker.speak(f"AI session for {binary}. Audio enabled.")
     else:
-        print(f"axcli: AI session for '{binary}'. WARNING: No AI provider configured.")
-        print(f"axcli: Set AXCLI_AI_KEY and AXCLI_AI_PROVIDER, or start Ollama.")
-    print(f"axcli: Type 'quit' to exit, 'help' for options.")
+        print(f"{B}axcli{R} {D}— AI session for{R} {B}{binary}{R}")
+        print(f"{YE}WARNING: No AI provider configured. Set AXCLI_AI_KEY and AXCLI_AI_PROVIDER.{R}")
+    print(f"{D}Type 'quit' to exit, 'help' for options.{R}")
     print()
 
     context: list[dict] = []
     last_output = ""
+    last_suggestions: list[str] = []
+
+    # Styled prompt
+    PROMPT = f"{B}you:{R} " if not use_screen_reader else "you: "
 
     while True:
         try:
-            user_input = input("you: ").strip()
+            user_input = input(PROMPT).strip()
         except (EOFError, KeyboardInterrupt):
-            print("\naxcli: Session ended.")
+            # Ctrl+C: if speech is playing, stop it instead of exiting
+            if speaker and speaker._proc and speaker._proc.poll() is None:
+                speaker.stop()
+                print(f"\n{D}(speech stopped){R}")
+                continue
+            print(f"\n{D}Session ended.{R}")
             return 0
 
         if not user_input:
             continue
 
         if user_input.lower() in ("quit", "exit", "q"):
-            print("axcli: Session ended.")
+            print(f"{D}Session ended.{R}")
             return 0
 
         if user_input.lower() == "help":
@@ -76,21 +100,51 @@ def start_repl(binary: str, audio: bool = False) -> int:
         if user_input.lower() == "repeat":
             if last_output:
                 print(last_output)
+                if speaker:
+                    for line in last_output.splitlines():
+                        if line.strip():
+                            speaker.enqueue(line)
             else:
                 print("axcli: Nothing to repeat.")
             continue
 
+        # Numbered shortcut: "1", "2", "run 1", "run 2", "try 1"
+        shortcut_input = user_input.lower().strip()
+        shortcut_num = None
+        if shortcut_input.isdigit():
+            shortcut_num = int(shortcut_input)
+        elif shortcut_input.startswith(("run ", "try ", "do ")) and shortcut_input.split()[-1].isdigit():
+            shortcut_num = int(shortcut_input.split()[-1])
+
+        if shortcut_num is not None and last_suggestions:
+            idx = shortcut_num - 1
+            if 0 <= idx < len(last_suggestions):
+                suggestion = last_suggestions[idx]
+                # Extract command from suggestion text like "Run 'gh repo view foo'"
+                import re
+                cmd_match = re.search(r"['\"]([^'\"]+)['\"]", suggestion)
+                if cmd_match:
+                    user_input = cmd_match.group(1)
+                else:
+                    # No quoted command — pass the whole suggestion to AI
+                    user_input = suggestion
+                print(f"{D}→ {user_input}{R}")
+            else:
+                print(f"axcli: No suggestion #{shortcut_num}. Valid: 1-{len(last_suggestions)}")
+                continue
+
         # Detect raw command vs natural language
-        # Raw: starts with a known verb/flag or the binary name
         argv = _try_raw_command(user_input, binary)
 
+        import time as _time
+        t0 = _time.monotonic()
+
         if argv is None:
-            # Natural language → ask AI
-            print("status: Thinking...")
+            print(f"{D}Thinking...{R}")
             intent = get_intent(user_input, binary, context)
 
             if intent.error:
-                print(f"error: {intent.error}")
+                print(f"{RE}error: {intent.error}{R}")
                 continue
 
             if not intent.command:
@@ -98,68 +152,86 @@ def start_repl(binary: str, audio: bool = False) -> int:
                 continue
 
             argv = [binary] + intent.command
-            print(f"status: {intent.explanation}")
+            print(f"{D}{intent.explanation}{R}")
 
         # Safety check
         level = classify(argv)
         cmd_str = " ".join(argv)
 
         if level == "dangerous":
-            print(f"warning: HIGH SEVERITY. I will run: {cmd_str}")
-            print(f"warning: This may permanently modify or delete resources. Type 'yes' to proceed.")
+            print(f"{YE}⚠ HIGH SEVERITY: {cmd_str}{R}")
+            print(f"{YE}This may permanently modify or delete resources. Type 'yes' to proceed.{R}")
             try:
-                confirm = input("you: ").strip().lower()
+                confirm = input(PROMPT).strip().lower()
             except (EOFError, KeyboardInterrupt):
-                print("\naxcli: Cancelled.")
+                print(f"\n{D}Cancelled.{R}")
                 continue
             if confirm != "yes":
-                print("axcli: Cancelled.")
+                print(f"{D}Cancelled.{R}")
                 continue
         elif level == "confirm":
-            print(f"status: I will run: {cmd_str}")
-            print(f"status: Proceed? [Y/n]")
+            print(f"{D}→ {cmd_str}{R}")
+            print(f"{D}Proceed? [Y/n]{R}")
             try:
-                confirm = input("you: ").strip().lower()
+                confirm = input(PROMPT).strip().lower()
             except (EOFError, KeyboardInterrupt):
-                print("\naxcli: Cancelled.")
+                print(f"\n{D}Cancelled.{R}")
                 continue
             if confirm in ("n", "no"):
-                print("axcli: Cancelled.")
+                print(f"{D}Cancelled.{R}")
                 continue
         else:
-            print(f"status: Running: {cmd_str}")
+            print(f"{D}→ {cmd_str}{R}")
 
         # Execute
         result = run(argv)
+        elapsed = _time.monotonic() - t0
 
         # Summarize with AI
         stdout_clean = strip(result.stdout)
         stderr_clean = strip(result.stderr)
 
         if result.exit_code != 0 and stderr_clean:
-            print(f"error: Command failed (exit {result.exit_code})")
+            print(f"{RE}error: Command failed (exit {result.exit_code}){R}")
             if earcons:
                 earcons.error()
 
         summary = summarize_output(cmd_str, stdout_clean, stderr_clean, result.exit_code)
 
-        output_text = f"result: {summary.summary}"
-        print(output_text)
+        # Apply domain-specific formatting
+        if use_screen_reader:
+            output_text = f"result: {summary.summary}"
+            print(output_text)
+        else:
+            from axcli.colorize import colorize
+            print()
+            output_text = colorize(summary.summary)
+            print(output_text)
+
+        # Timing
+        print(f"{D}({elapsed:.1f}s){R}")
 
         if speaker:
             if result.exit_code == 0 and earcons:
                 earcons.success()
-            # Enqueue line by line — enqueue doesn't interrupt previous lines
             for line in summary.summary.splitlines():
                 line = line.strip()
                 if line:
                     speaker.enqueue(line)
 
-        if summary.next_actions:
-            actions_text = "You could try: " + ". ".join(summary.next_actions)
-            print("axcli: You could try:")
-            for i, action in enumerate(summary.next_actions, 1):
-                print(f"  {i}. {action}")
+        # Suggestions — store for numbered shortcut access
+        last_suggestions = summary.next_actions or []
+        if last_suggestions:
+            actions_text = "You could try: " + ". ".join(last_suggestions)
+            if use_screen_reader:
+                print("axcli: You could try:")
+                for i, action in enumerate(last_suggestions, 1):
+                    print(f"  {i}. {action}")
+            else:
+                print(f"{D}{'─' * 40}{R}")
+                print(f"{D}Next (type the number to run):{R}")
+                for i, action in enumerate(last_suggestions, 1):
+                    print(f"{D}  {i}. {action}{R}")
             if speaker:
                 speaker.enqueue(actions_text)
 

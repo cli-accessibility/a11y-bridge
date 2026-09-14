@@ -57,6 +57,16 @@ _STATUS_COLORS = {
     "SKIP": _CYAN,
     "SKIPPED": _CYAN,
     "INFO": _CYAN,
+    # Repository / resource visibility
+    "public": _GREEN,
+    "private": _YELLOW,
+    "fork": _CYAN,
+    "archived": _DIM,
+    # Merge / PR status
+    "open": _GREEN,
+    "closed": _RED,
+    "merged": _CYAN,
+    "draft": _YELLOW,
 }
 
 _STATUS_RE = re.compile(
