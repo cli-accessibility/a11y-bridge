@@ -24,6 +24,23 @@ classifiers = [
     "Topic :: Utilities",
 ]
 
+# Core package: zero dependencies (color domain, screen reader mode, table formatting)
+# Optional domains installed separately:
+#   pip install axcli[audio]  — TTS (piper) + STT (vosk)
+#   pip install axcli[askai]  — AI interactive mode (httpx for cleaner API calls)
+#   pip install axcli[all]    — everything
+
+[project.optional-dependencies]
+audio = [
+    "piper-tts>=1.6.0",
+    "vosk>=0.3.45",
+]
+askai = []  # stdlib urllib is sufficient; httpx is optional for better error handling
+all = [
+    "piper-tts>=1.6.0",
+    "vosk>=0.3.45",
+]
+
 [project.scripts]
 axcli = "axcli.cli:main"
 

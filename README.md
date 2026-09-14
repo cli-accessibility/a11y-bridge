@@ -43,18 +43,29 @@ Every value paired with its header. `[OK]` and `[ERROR]` prefixes replace color.
 
 ## Install
 
-From PyPI:
+The core package has zero dependencies. Install only the domains you need:
 
 ```bash
+# Core only — color, screen reader, table formatting (zero deps)
 pip install axcli
+
+# With audio — TTS (Piper natural voice) + STT (Vosk voice input)
+pip install axcli[audio]
+
+# Everything
+pip install axcli[all]
 ```
+
+The AI mode (`--askai`) needs an API key but no extra pip packages — it uses stdlib urllib.
 
 From source:
 
 ```bash
 git clone https://github.com/cli-accessibility/axcli.git
 cd axcli
-pip install .
+pip install .              # core only
+pip install .[audio]       # with audio
+pip install .[all]         # everything
 ```
 
 Or run without installing:
@@ -259,15 +270,16 @@ Pipe-safe: when stdout is not a terminal, output passes through raw (ANSI-stripp
 
 ## Requirements
 
-Python 3.11 or later. Core features (wrapper, color, screen reader) have zero pip dependencies — stdlib only.
+Python 3.11 or later.
 
-Optional dependencies for additional features:
-
-| Feature | Install | What it adds |
+| Install | What you get | Dependencies |
 |---|---|---|
-| AI mode (--askai) | Set `AXCLI_AI_KEY` | Natural language → CLI commands via Claude/OpenAI/Ollama |
-| Natural voice (TTS) | `pip install piper-tts` | Human-quality speech output (default: espeak-ng, robotic) |
-| Voice input (STT) | `pip install vosk` | Speak commands instead of typing |
+| `pip install axcli` | Color, screen reader mode, table formatting | None (stdlib only) |
+| `pip install axcli[audio]` | + TTS (Piper natural voice) + STT (Vosk voice input) | piper-tts, vosk |
+| `pip install axcli[all]` | Everything above | piper-tts, vosk |
+| `--askai` flag | + AI interactive mode (natural language → commands) | None (set `AXCLI_AI_KEY`) |
+
+Audio also needs system packages: `espeak-ng` (Linux, usually pre-installed) or Piper voice model (~60MB, one-time download).
 
 ## Documentation
 
