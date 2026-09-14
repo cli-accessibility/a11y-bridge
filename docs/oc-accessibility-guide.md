@@ -284,6 +284,15 @@ axcli --domain screen-reader oc get pods -n myns
 NO_COLOR=1 axcli oc get pods -n myns
 AXCLI_SCREEN_READER=1 axcli oc get pods -n myns
 
+# Audio mode — speaks results aloud
+axcli --domain audio oc get pods -n myns
+
+# AI session with voice — describe what you want, hear results
+axcli --domain audio --askai oc
+# you: what pods are running in my namespace
+# (results spoken one by one)
+# you: v  (voice input — speak your next command)
+
 # Strip ANSI only, no reformatting
 axcli --raw oc describe pod my-pod -n myns
 
