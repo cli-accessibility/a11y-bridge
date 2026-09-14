@@ -47,13 +47,13 @@ The core package has zero dependencies. Install only the domains you need:
 
 ```bash
 # Core only — color, screen reader, table formatting (zero deps)
-pip install a11y-cli
+pip install a11y-bridge
 
 # With audio — TTS (Piper natural voice) + STT (Vosk voice input)
-pip install a11y-cli[audio]
+pip install a11y-bridge[audio]
 
 # Everything
-pip install a11y-cli[all]
+pip install a11y-bridge[all]
 ```
 
 The AI mode (`--askai`) needs an API key but no extra pip packages — it uses stdlib urllib.
@@ -61,7 +61,7 @@ The AI mode (`--askai`) needs an API key but no extra pip packages — it uses s
 From source:
 
 ```bash
-git clone https://github.com/cli-accessibility/axcli.git
+git clone https://github.com/cli-accessibility/a11y-bridge.git
 cd axcli
 pip install .              # core only
 pip install .[audio]       # with audio
@@ -214,7 +214,7 @@ you: quit
 After installing, run `axcli setup` to check prerequisites and download models:
 
 ```bash
-pip install a11y-cli[audio]
+pip install a11y-bridge[audio]
 axcli setup
 ```
 
@@ -306,9 +306,9 @@ Python 3.11 or later.
 
 | Install | What you get | Dependencies |
 |---|---|---|
-| `pip install a11y-cli` | Color, screen reader mode, table formatting | None (stdlib only) |
-| `pip install a11y-cli[audio]` | + TTS (Piper natural voice) + STT (Vosk voice input) | piper-tts, vosk |
-| `pip install a11y-cli[all]` | Everything above | piper-tts, vosk |
+| `pip install a11y-bridge` | Color, screen reader mode, table formatting | None (stdlib only) |
+| `pip install a11y-bridge[audio]` | + TTS (Piper natural voice) + STT (Vosk voice input) | piper-tts, vosk |
+| `pip install a11y-bridge[all]` | Everything above | piper-tts, vosk |
 | `--askai` flag | + AI interactive mode (natural language → commands) | None (set `AXCLI_AI_KEY`) |
 
 Audio also needs system packages: `espeak-ng` (Linux, usually pre-installed) or Piper voice model (~60MB, one-time download).

@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "a11y-cli"
+name = "a11y-bridge"
 version = "0.1.0"
 description = "Accessible CLI wrapper — makes any command-line tool screen-reader friendly"
 requires-python = ">=3.11"
@@ -45,6 +45,6 @@ all = [
 axcli = "axcli.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/cli-accessibility/axcli"
-Repository = "https://github.com/cli-accessibility/axcli"
-Issues = "https://github.com/cli-accessibility/axcli/issues"
+Homepage = "https://github.com/cli-accessibility/a11y-bridge"
+Repository = "https://github.com/cli-accessibility/a11y-bridge"
+Issues = "https://github.com/cli-accessibility/a11y-bridge/issues"
