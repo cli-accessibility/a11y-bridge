@@ -26,6 +26,7 @@ Options:
   --passthrough         Just set NO_COLOR=1 TERM=dumb, no processing
   --help, -h            Show this help
   --version             Show version
+  setup                 Check prerequisites and download models
 
 Examples:
   axcli oc get pods -n myns
@@ -47,6 +48,10 @@ def main() -> int:
         from axcli import __version__
         print(f"axcli {__version__}")
         return 0
+
+    if args[0] == "setup":
+        from axcli.setup import run_setup
+        return run_setup()
 
     # Parse axcli's own flags
     domain = "color"

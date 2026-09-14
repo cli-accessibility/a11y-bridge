@@ -209,7 +209,18 @@ status: Running: gh pr list
 you: quit
 ```
 
-### Audio prerequisites
+### Quick setup
+
+After installing, run `axcli setup` to check prerequisites and download models:
+
+```bash
+pip install axcli[audio]
+axcli setup
+```
+
+This checks for system packages, Python packages, and offers to download the TTS and STT models automatically.
+
+### Manual audio prerequisites
 
 **System packages needed** (install once):
 
