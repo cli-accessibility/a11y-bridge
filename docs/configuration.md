@@ -8,7 +8,7 @@ axcli [options] <command> [args...]
 Options:
   --domain color          Color & visual accessibility (default, adaptive)
   --domain screen-reader  Force screen reader mode regardless of context
-  --domain audio          Text-to-speech output (future)
+  --domain audio          Speak output via TTS, voice input with 'v' key
   --askai                 Start an AI-powered interactive session
   --raw                   Strip ANSI only, no reformatting
   --passthrough           Just set NO_COLOR=1 TERM=dumb, no processing
@@ -35,6 +35,46 @@ status: Running: oc projects
 result: You have access to the following projects...
 result:   * arewm-tenant - arewm
 result:     gatekeeper-tenant - gatekeeper
+```
+
+## Domain: audio
+
+Speaks command output using text-to-speech. In `--askai` mode, also supports voice input via the `v` key.
+
+```bash
+# Speak output of any command
+axcli --domain audio oc get pods
+
+# AI session with voice output and input
+axcli --domain audio --askai gh
+```
+
+In the AI session, type `v` then speak your command. Press Ctrl+C to stop recording.
+
+### Audio Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `AXCLI_TTS_ENGINE` | auto-detect | Force TTS engine: `piper`, `espeak-ng`, `say`, `none` |
+| `AXCLI_TTS_RATE` | `170` | Speech rate in words per minute |
+| `AXCLI_PIPER_MODEL` | `~/.cache/axcli/piper/en_US-lessac-medium.onnx` | Path to Piper voice model |
+
+### TTS Engine Priority
+
+| Engine | Quality | Latency | Install |
+|---|---|---|---|
+| Piper | Natural (neural) | ~3s/sentence | `pip install piper-tts` + voice model |
+| espeak-ng | Robotic (formant) | ~50ms | System package (usually pre-installed) |
+| say | System voice | ~100ms | macOS built-in |
+
+### Voice Input (STT) Setup
+
+```bash
+pip install vosk
+mkdir -p ~/.cache/axcli
+cd ~/.cache/axcli
+curl -sL https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip -o model.zip
+unzip -q model.zip && mv vosk-model-small-en-us-0.15 vosk-model && rm model.zip
 ```
 
 ## --raw
@@ -70,7 +110,7 @@ axcli --askai kubectl
 | `AXCLI_AI_KEY` | Yes (unless Ollama) | API key for the AI provider |
 | `AXCLI_AI_PROVIDER` | No | Explicit provider: `anthropic`, `openai`, `ollama`. Auto-detected if not set. |
 | `AXCLI_AI_URL` | No | Custom API endpoint (default: provider's standard URL, or `http://localhost:11434` for Ollama) |
-| `AXCLI_MODEL` | No | Model name override (default: `claude-sonnet-4-20250514` for Anthropic, `gpt-4o-mini` for OpenAI, `qwen2.5-coder:7b-instruct` for Ollama) |
+| `AXCLI_MODEL` | No | Model name override (default: `claude-sonnet-4-6` for Anthropic, `gpt-4o-mini` for OpenAI, `qwen2.5-coder:7b-instruct` for Ollama) |
 
 Provider-specific keys are also supported as fallbacks:
 

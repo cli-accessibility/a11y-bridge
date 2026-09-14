@@ -154,7 +154,7 @@ Optional settings:
 
 ```bash
 export AXCLI_AI_URL=http://localhost:11434   # custom API endpoint
-export AXCLI_MODEL=claude-sonnet-4-20250514         # specific model name
+export AXCLI_MODEL=claude-sonnet-4-6            # specific model name
 ```
 
 ### Safety
@@ -168,6 +168,70 @@ Commands are classified by safety level:
 | **Dangerous** | Requires typing "yes" | `delete`, `drain`, `destroy`, `purge`, `drop` |
 
 The AI generates commands but never classifies their safety — that's done by the allowlist. The full command is always shown before execution.
+
+## Audio Mode
+
+Speak results aloud and use voice input — fully offline using Piper (natural voice) or espeak-ng:
+
+```bash
+# Command output spoken aloud
+axcli --domain audio gh pr list
+
+# AI session with voice — results spoken, type 'v' to speak input
+axcli --domain audio --askai gh
+```
+
+```
+axcli: AI session for 'gh' (using anthropic, audio enabled). Type 'v' to use voice input.
+
+you: list all my repos
+(each repo spoken one by one in a natural voice)
+
+you: v
+axcli: Listening... (speak now, press Ctrl+C to stop)
+heard: show my pull requests
+status: Running: gh pr list
+(results spoken aloud)
+
+you: quit
+```
+
+### Audio setup
+
+TTS works out of the box if espeak-ng is installed (most Linux systems). For natural-sounding voice:
+
+```bash
+# Install Piper neural TTS (optional, recommended)
+pip install piper-tts
+
+# Download a voice model (~60MB, one-time)
+mkdir -p ~/.cache/axcli/piper
+cd ~/.cache/axcli/piper
+curl -sL https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx -o en_US-lessac-medium.onnx
+curl -sL https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json -o en_US-lessac-medium.onnx.json
+```
+
+For voice input:
+
+```bash
+# Install Vosk STT (optional)
+pip install vosk
+
+# Download speech model (~50MB, one-time)
+mkdir -p ~/.cache/axcli
+cd ~/.cache/axcli
+curl -sL https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip -o model.zip
+unzip -q model.zip && mv vosk-model-small-en-us-0.15 vosk-model && rm model.zip
+```
+
+### Audio settings
+
+```bash
+export AXCLI_TTS_RATE=170            # Words per minute (default 170)
+export AXCLI_TTS_ENGINE=espeak-ng    # Force engine: piper, espeak-ng, say, none
+```
+
+Engine priority: Piper (natural) > espeak-ng (robotic, fast) > say (macOS).
 
 ## How It Works
 
@@ -195,7 +259,15 @@ Pipe-safe: when stdout is not a terminal, output passes through raw (ANSI-stripp
 
 ## Requirements
 
-Python 3.11 or later. No pip dependencies — stdlib only.
+Python 3.11 or later. Core features (wrapper, color, screen reader) have zero pip dependencies — stdlib only.
+
+Optional dependencies for additional features:
+
+| Feature | Install | What it adds |
+|---|---|---|
+| AI mode (--askai) | Set `AXCLI_AI_KEY` | Natural language → CLI commands via Claude/OpenAI/Ollama |
+| Natural voice (TTS) | `pip install piper-tts` | Human-quality speech output (default: espeak-ng, robotic) |
+| Voice input (STT) | `pip install vosk` | Speak commands instead of typing |
 
 ## Documentation
 
