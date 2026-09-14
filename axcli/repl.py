@@ -31,18 +31,26 @@ def start_repl(binary: str, domain: str = "color") -> int:
     use_screen_reader = domain == "screen-reader" or needs_accessible_mode()
 
     mode_label = f"using {provider}" + (", audio enabled" if audio else "")
+    # Style helpers — no ANSI in screen reader / audio mode
+    B = "\x1b[1m" if not use_screen_reader else ""   # bold
+    D = "\x1b[2m" if not use_screen_reader else ""   # dim
+    R = "\x1b[0m" if not use_screen_reader else ""   # reset
+    RE = "\x1b[31m" if not use_screen_reader else ""  # red
+    YE = "\x1b[33m" if not use_screen_reader else "" # yellow
+
     if provider:
         voice_hint = ""
         if listener and listener.available:
             voice_hint = " Type 'v' to use voice input."
-        msg = f"axcli: AI session for '{binary}' ({mode_label}).{voice_hint} Type natural language or raw commands."
-        print(msg)
+        print(f"{B}axcli{R} {D}— AI session for{R} {B}{binary}{R} {D}({mode_label}){R}")
+        if voice_hint:
+            print(f"{D}{voice_hint.strip()}{R}")
         if speaker:
             speaker.speak(f"AI session for {binary}. Audio enabled.")
     else:
-        print(f"axcli: AI session for '{binary}'. WARNING: No AI provider configured.")
-        print(f"axcli: Set AXCLI_AI_KEY and AXCLI_AI_PROVIDER, or start Ollama.")
-    print(f"axcli: Type 'quit' to exit, 'help' for options.")
+        print(f"{B}axcli{R} {D}— AI session for{R} {B}{binary}{R}")
+        print(f"{YE}WARNING: No AI provider configured. Set AXCLI_AI_KEY and AXCLI_AI_PROVIDER.{R}")
+    print(f"{D}Type 'quit' to exit, 'help' for options.{R}")
     print()
 
     context: list[dict] = []
@@ -91,11 +99,11 @@ def start_repl(binary: str, domain: str = "color") -> int:
 
         if argv is None:
             # Natural language → ask AI
-            print("status: Thinking...")
+            print(f"{D}status: Thinking...{R}")
             intent = get_intent(user_input, binary, context)
 
             if intent.error:
-                print(f"error: {intent.error}")
+                print(f"{RE}error: {intent.error}{R}")
                 continue
 
             if not intent.command:
@@ -103,7 +111,7 @@ def start_repl(binary: str, domain: str = "color") -> int:
                 continue
 
             argv = [binary] + intent.command
-            print(f"status: {intent.explanation}")
+            print(f"{D}status: {intent.explanation}{R}")
 
         # Safety check
         level = classify(argv)
@@ -132,7 +140,7 @@ def start_repl(binary: str, domain: str = "color") -> int:
                 print("axcli: Cancelled.")
                 continue
         else:
-            print(f"status: Running: {cmd_str}")
+            print(f"{D}status: Running: {cmd_str}{R}")
 
         # Execute
         result = run(argv)
@@ -143,7 +151,7 @@ def start_repl(binary: str, domain: str = "color") -> int:
         stderr_clean = strip(result.stderr)
 
         if result.exit_code != 0 and stderr_clean:
-            print(f"error: Command failed (exit {result.exit_code})")
+            print(f"{RE}error: Command failed (exit {result.exit_code}){R}")
             if earcons:
                 earcons.error()
 
@@ -151,19 +159,17 @@ def start_repl(binary: str, domain: str = "color") -> int:
 
         # Apply domain-specific formatting to the summary
         if use_screen_reader:
-            # Screen reader: labeled text with prefixes
             output_text = f"result: {summary.summary}"
+            print(output_text)
         else:
-            # Sighted: colorize status words in the summary
             from axcli.colorize import colorize
+            print()
             output_text = colorize(summary.summary)
-
-        print(output_text)
+            print(output_text)
 
         if speaker:
             if result.exit_code == 0 and earcons:
                 earcons.success()
-            # Enqueue line by line — enqueue doesn't interrupt previous lines
             for line in summary.summary.splitlines():
                 line = line.strip()
                 if line:
@@ -171,9 +177,16 @@ def start_repl(binary: str, domain: str = "color") -> int:
 
         if summary.next_actions:
             actions_text = "You could try: " + ". ".join(summary.next_actions)
-            print("axcli: You could try:")
-            for i, action in enumerate(summary.next_actions, 1):
-                print(f"  {i}. {action}")
+            if use_screen_reader:
+                print("axcli: You could try:")
+                for i, action in enumerate(summary.next_actions, 1):
+                    print(f"  {i}. {action}")
+            else:
+                print()
+                print(f"{D}{'─' * 40}{R}")
+                print(f"{D}Next:{R}")
+                for i, action in enumerate(summary.next_actions, 1):
+                    print(f"{D}  {i}. {action}{R}")
             if speaker:
                 speaker.enqueue(actions_text)
 
