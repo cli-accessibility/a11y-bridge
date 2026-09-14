@@ -137,11 +137,7 @@ def start_repl(binary: str, domain: str = "color") -> int:
         # Execute
         result = run(argv)
 
-        # Show raw output with domain formatting (before AI summary)
-        if result.stdout.strip() and not use_screen_reader and not audio:
-            from axcli.colorize import colorize as _colorize
-            print(_colorize(strip(result.stdout)), end="" if result.stdout.endswith("\n") else "\n")
-
+        # In --askai mode, skip raw output — the AI summary is the output.
         # Summarize with AI
         stdout_clean = strip(result.stdout)
         stderr_clean = strip(result.stderr)
