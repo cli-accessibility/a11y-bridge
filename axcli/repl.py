@@ -10,7 +10,13 @@ from axcli.ansi import strip
 
 def start_repl(binary: str) -> int:
     """Start an interactive AI session wrapping the given binary."""
-    print(f"axcli: AI session for '{binary}'. Type natural language or raw commands.")
+    from axcli.intent import _get_provider
+    provider = _get_provider()
+    if provider:
+        print(f"axcli: AI session for '{binary}' (using {provider}). Type natural language or raw commands.")
+    else:
+        print(f"axcli: AI session for '{binary}'. WARNING: No AI provider configured.")
+        print(f"axcli: Set AXCLI_AI_KEY and AXCLI_AI_PROVIDER, or start Ollama.")
     print(f"axcli: Type 'quit' to exit, 'help' for options.")
     print()
 

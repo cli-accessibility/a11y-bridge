@@ -92,9 +92,13 @@ def _call_anthropic(messages: list[dict], system: str) -> str:
             "anthropic-version": "2023-06-01",
         },
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        data = json.loads(resp.read())
-    return data["content"][0]["text"]
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read())
+        return data["content"][0]["text"]
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()[:200]
+        raise ConnectionError(f"Anthropic API error {e.code}: {body}")
 
 
 def _call_openai_compatible(messages: list[dict], system: str, url: str, key: str) -> str:
@@ -121,13 +125,21 @@ def _call_ollama(messages: list[dict], system: str) -> str:
     body = json.dumps({"model": model, "messages": msgs, "stream": False}).encode()
     req = urllib.request.Request(f"{url}/api/chat", data=body, headers={"Content-Type": "application/json"})
     # ponytail: 180s timeout — first call loads model into GPU memory, can take 30-90s
-    with urllib.request.urlopen(req, timeout=180) as resp:
-        data = json.loads(resp.read())
-    return data["message"]["content"]
+    try:
+        with urllib.request.urlopen(req, timeout=180) as resp:
+            data = json.loads(resp.read())
+        return data["message"]["content"]
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()[:200]
+        raise ConnectionError(f"Ollama API error {e.code}: {body}")
 
 
 def _call_llm(messages: list[dict], system: str) -> str:
     provider = _get_provider()
+    if not provider:
+        raise ConnectionError(
+            "No LLM available. Set AXCLI_AI_KEY and AXCLI_AI_PROVIDER, or start Ollama locally."
+        )
     if provider == "anthropic":
         return _call_anthropic(messages, system)
     elif provider == "openai":
