@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "axcli"
+version = "0.1.0"
+description = "Accessible CLI wrapper — makes any command-line tool screen-reader friendly"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+
+[project.scripts]
+axcli = "axcli.cli:main"
