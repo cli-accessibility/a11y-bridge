@@ -1,41 +1,36 @@
-"""CLI entry point with subcommands for domain-specific accessibility."""
+"""CLI entry point — adaptive accessibility based on user context."""
 import sys
 from axcli.executor import run
 from axcli.formatter import format_output
 from axcli.ansi import accessible, strip
+from axcli.colorize import colorize
+from axcli.detect import needs_accessible_mode
 
 
 USAGE = """\
 axcli -- accessible CLI wrapper
 
 Usage:
-  axcli <command> [args...]             Apply all accessibility compensations
-  axcli color <command> [args...]       Apply color & visual compensations (CV-1 to CV-15)
-  axcli raw <command> [args...]         Strip ANSI only, no reformatting
-  axcli passthrough <command> [args...] Run with NO_COLOR=1 TERM=dumb, no processing
+  axcli [options] <command> [args...]
+
+Adaptive behavior:
+  Sighted user (TTY, no screen reader) → adds color to plain output
+  Screen reader user (NO_COLOR, TERM=dumb) → strips color, adds text labels
 
 Options:
-  --help, -h    Show this help
-  --version     Show version
-
-Subcommands:
-  color         Full color & visual accessibility: interprets color semantics
-                as text prefixes, extracts hyperlink URLs, converts bold/underline
-                to markers, replaces Unicode symbols with text alternatives,
-                and reformats tables as labeled sentences.
-
-  raw           Strips ANSI escape sequences but preserves original output
-                structure. No table conversion, no labels.
-
-  passthrough   Runs the command with NO_COLOR=1 and TERM=dumb but does not
-                touch the output. Use when the binary itself handles these
-                signals correctly.
+  --domain color        Apply color & visual accessibility (default)
+  --domain screen-reader  Force screen reader mode (labels, tables, symbols)
+  --domain audio        Pipe output through text-to-speech (future)
+  --raw                 Strip ANSI only, no reformatting
+  --passthrough         Just set NO_COLOR=1 TERM=dumb, no processing
+  --help, -h            Show this help
+  --version             Show version
 
 Examples:
   axcli oc get pods -n myns
-  axcli color gh pr list
-  axcli raw kubectl logs my-pod
-  axcli passthrough git diff
+  axcli --domain color gh pr list
+  axcli --domain screen-reader oc projects
+  axcli --raw kubectl logs my-pod
 """
 
 
@@ -51,19 +46,37 @@ def main() -> int:
         print(f"axcli {__version__}")
         return 0
 
-    # Determine mode from first arg
-    mode = "full"
-    cmd_args = args
+    # Parse axcli's own flags
+    domain = "color"
+    mode = "adaptive"
+    cmd_start = 0
 
-    if args[0] in ("color", "raw", "passthrough") and len(args) > 1:
-        mode = args[0]
-        cmd_args = args[1:]
+    i = 0
+    while i < len(args):
+        if args[i] == "--domain" and i + 1 < len(args):
+            domain = args[i + 1]
+            i += 2
+            cmd_start = i
+        elif args[i] == "--raw":
+            mode = "raw"
+            i += 1
+            cmd_start = i
+        elif args[i] == "--passthrough":
+            mode = "passthrough"
+            i += 1
+            cmd_start = i
+        elif args[i].startswith("--"):
+            # Unknown flag — might be for the wrapped command
+            break
+        else:
+            break
 
+    cmd_args = args[cmd_start:]
     if not cmd_args:
         print(USAGE.strip())
         return 0
 
-    # Pipe-safe: raw passthrough when stdout is not a TTY
+    # Pipe-safe: raw output when stdout is not a TTY
     if not sys.stdout.isatty():
         result = run(cmd_args)
         sys.stdout.write(strip(result.stdout) if mode != "passthrough" else result.stdout)
@@ -82,24 +95,43 @@ def main() -> int:
     result = run(cmd_args)
 
     if mode == "raw":
-        # Strip ANSI but no reformatting
         out = strip(result.stdout)
         if out.strip():
             print(out, end="" if out.endswith("\n") else "\n")
         if result.stderr:
-            err = strip(result.stderr)
-            for line in err.strip().splitlines():
+            for line in strip(result.stderr).strip().splitlines():
                 print(f"error: {line}")
         if result.exit_code != 0 and not result.stderr:
             print(f"error: command exited with code {result.exit_code}")
         return result.exit_code
 
-    # Full mode or color mode — interpret colors semantically, then format
-    a11y_stdout, stdout_sem = accessible(result.stdout)
-    a11y_stderr, _ = accessible(result.stderr)
-    output = format_output(a11y_stdout, a11y_stderr, result.exit_code, stdout_sem)
+    # Adaptive mode: detect context and apply appropriate enhancement
+    if domain == "screen-reader" or needs_accessible_mode():
+        # Screen reader mode: strip color, add text labels, convert tables
+        a11y_stdout, stdout_sem = accessible(result.stdout)
+        a11y_stderr, _ = accessible(result.stderr)
+        output = format_output(a11y_stdout, a11y_stderr, result.exit_code, stdout_sem)
+    elif domain == "audio":
+        # Future: TTS output
+        print("error: audio domain not yet implemented. Use --domain color or --domain screen-reader.")
+        return 1
+    else:
+        # Sighted mode: add color to plain output
+        stdout = strip(result.stdout)
+        stderr = strip(result.stderr)
+        colored_stdout = colorize(stdout)
+        if result.exit_code != 0 and stderr:
+            for line in stderr.strip().splitlines():
+                print(f"\x1b[31merror: {line}\x1b[0m")
+            if colored_stdout.strip():
+                print()
+                print(colored_stdout, end="" if colored_stdout.endswith("\n") else "\n")
+        elif colored_stdout.strip():
+            print(colored_stdout, end="" if colored_stdout.endswith("\n") else "\n")
+        if result.exit_code != 0 and not stderr:
+            print(f"\x1b[31merror: command exited with code {result.exit_code}\x1b[0m")
+        return result.exit_code
 
     if output:
         print(output)
-
     return result.exit_code
