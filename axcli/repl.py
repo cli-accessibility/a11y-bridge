@@ -108,14 +108,21 @@ def start_repl(binary: str, domains: set[str] | None = None) -> int:
                 print("axcli: Nothing to repeat.")
             continue
 
-        # Numbered shortcut: typing "1" or "2" runs the suggestion
-        if user_input.isdigit() and last_suggestions:
-            idx = int(user_input) - 1
+        # Numbered shortcut: "1", "2", "run 1", "run 2", "try 1"
+        shortcut_input = user_input.lower().strip()
+        shortcut_num = None
+        if shortcut_input.isdigit():
+            shortcut_num = int(shortcut_input)
+        elif shortcut_input.startswith(("run ", "try ", "do ")) and shortcut_input.split()[-1].isdigit():
+            shortcut_num = int(shortcut_input.split()[-1])
+
+        if shortcut_num is not None and last_suggestions:
+            idx = shortcut_num - 1
             if 0 <= idx < len(last_suggestions):
                 user_input = last_suggestions[idx]
                 print(f"{D}→ {user_input}{R}")
             else:
-                print(f"axcli: No suggestion #{user_input}. Valid: 1-{len(last_suggestions)}")
+                print(f"axcli: No suggestion #{shortcut_num}. Valid: 1-{len(last_suggestions)}")
                 continue
 
         # Detect raw command vs natural language
