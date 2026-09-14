@@ -55,19 +55,28 @@ def start_repl(binary: str, domain: str = "color") -> int:
 
     context: list[dict] = []
     last_output = ""
+    last_suggestions: list[str] = []
+
+    # Styled prompt
+    PROMPT = f"{B}you:{R} " if not use_screen_reader else "you: "
 
     while True:
         try:
-            user_input = input("you: ").strip()
+            user_input = input(PROMPT).strip()
         except (EOFError, KeyboardInterrupt):
-            print("\naxcli: Session ended.")
+            # Ctrl+C: if speech is playing, stop it instead of exiting
+            if speaker and speaker._proc and speaker._proc.poll() is None:
+                speaker.stop()
+                print(f"\n{D}(speech stopped){R}")
+                continue
+            print(f"\n{D}Session ended.{R}")
             return 0
 
         if not user_input:
             continue
 
         if user_input.lower() in ("quit", "exit", "q"):
-            print("axcli: Session ended.")
+            print(f"{D}Session ended.{R}")
             return 0
 
         if user_input.lower() == "help":
@@ -89,17 +98,32 @@ def start_repl(binary: str, domain: str = "color") -> int:
         if user_input.lower() == "repeat":
             if last_output:
                 print(last_output)
+                if speaker:
+                    for line in last_output.splitlines():
+                        if line.strip():
+                            speaker.enqueue(line)
             else:
                 print("axcli: Nothing to repeat.")
             continue
 
+        # Numbered shortcut: typing "1" or "2" runs the suggestion
+        if user_input.isdigit() and last_suggestions:
+            idx = int(user_input) - 1
+            if 0 <= idx < len(last_suggestions):
+                user_input = last_suggestions[idx]
+                print(f"{D}→ {user_input}{R}")
+            else:
+                print(f"axcli: No suggestion #{user_input}. Valid: 1-{len(last_suggestions)}")
+                continue
+
         # Detect raw command vs natural language
-        # Raw: starts with a known verb/flag or the binary name
         argv = _try_raw_command(user_input, binary)
 
+        import time as _time
+        t0 = _time.monotonic()
+
         if argv is None:
-            # Natural language → ask AI
-            print(f"{D}status: Thinking...{R}")
+            print(f"{D}Thinking...{R}")
             intent = get_intent(user_input, binary, context)
 
             if intent.error:
@@ -111,41 +135,41 @@ def start_repl(binary: str, domain: str = "color") -> int:
                 continue
 
             argv = [binary] + intent.command
-            print(f"{D}status: {intent.explanation}{R}")
+            print(f"{D}{intent.explanation}{R}")
 
         # Safety check
         level = classify(argv)
         cmd_str = " ".join(argv)
 
         if level == "dangerous":
-            print(f"warning: HIGH SEVERITY. I will run: {cmd_str}")
-            print(f"warning: This may permanently modify or delete resources. Type 'yes' to proceed.")
+            print(f"{YE}⚠ HIGH SEVERITY: {cmd_str}{R}")
+            print(f"{YE}This may permanently modify or delete resources. Type 'yes' to proceed.{R}")
             try:
-                confirm = input("you: ").strip().lower()
+                confirm = input(PROMPT).strip().lower()
             except (EOFError, KeyboardInterrupt):
-                print("\naxcli: Cancelled.")
+                print(f"\n{D}Cancelled.{R}")
                 continue
             if confirm != "yes":
-                print("axcli: Cancelled.")
+                print(f"{D}Cancelled.{R}")
                 continue
         elif level == "confirm":
-            print(f"status: I will run: {cmd_str}")
-            print(f"status: Proceed? [Y/n]")
+            print(f"{D}→ {cmd_str}{R}")
+            print(f"{D}Proceed? [Y/n]{R}")
             try:
-                confirm = input("you: ").strip().lower()
+                confirm = input(PROMPT).strip().lower()
             except (EOFError, KeyboardInterrupt):
-                print("\naxcli: Cancelled.")
+                print(f"\n{D}Cancelled.{R}")
                 continue
             if confirm in ("n", "no"):
-                print("axcli: Cancelled.")
+                print(f"{D}Cancelled.{R}")
                 continue
         else:
-            print(f"{D}status: Running: {cmd_str}{R}")
+            print(f"{D}→ {cmd_str}{R}")
 
         # Execute
         result = run(argv)
+        elapsed = _time.monotonic() - t0
 
-        # In --askai mode, skip raw output — the AI summary is the output.
         # Summarize with AI
         stdout_clean = strip(result.stdout)
         stderr_clean = strip(result.stderr)
@@ -157,7 +181,7 @@ def start_repl(binary: str, domain: str = "color") -> int:
 
         summary = summarize_output(cmd_str, stdout_clean, stderr_clean, result.exit_code)
 
-        # Apply domain-specific formatting to the summary
+        # Apply domain-specific formatting
         if use_screen_reader:
             output_text = f"result: {summary.summary}"
             print(output_text)
@@ -167,6 +191,9 @@ def start_repl(binary: str, domain: str = "color") -> int:
             output_text = colorize(summary.summary)
             print(output_text)
 
+        # Timing
+        print(f"{D}({elapsed:.1f}s){R}")
+
         if speaker:
             if result.exit_code == 0 and earcons:
                 earcons.success()
@@ -175,17 +202,18 @@ def start_repl(binary: str, domain: str = "color") -> int:
                 if line:
                     speaker.enqueue(line)
 
-        if summary.next_actions:
-            actions_text = "You could try: " + ". ".join(summary.next_actions)
+        # Suggestions — store for numbered shortcut access
+        last_suggestions = summary.next_actions or []
+        if last_suggestions:
+            actions_text = "You could try: " + ". ".join(last_suggestions)
             if use_screen_reader:
                 print("axcli: You could try:")
-                for i, action in enumerate(summary.next_actions, 1):
+                for i, action in enumerate(last_suggestions, 1):
                     print(f"  {i}. {action}")
             else:
-                print()
                 print(f"{D}{'─' * 40}{R}")
-                print(f"{D}Next:{R}")
-                for i, action in enumerate(summary.next_actions, 1):
+                print(f"{D}Next (type the number to run):{R}")
+                for i, action in enumerate(last_suggestions, 1):
                     print(f"{D}  {i}. {action}{R}")
             if speaker:
                 speaker.enqueue(actions_text)
