@@ -92,9 +92,86 @@ axcli --raw kubectl logs my-pod
 axcli --passthrough git diff
 ```
 
+## AI-Powered Interactive Mode
+
+Start a conversational session where you describe what you want in plain language:
+
+```bash
+axcli --askai gh
+```
+
+```
+axcli: AI session for 'gh'. Type natural language or raw commands.
+
+you: show me my open pull requests
+status: List open pull requests
+status: Running: gh pr list
+result: 3 open pull requests. #123 "Fix login bug" updated yesterday,
+        #456 "Add dark mode" updated 3 days ago, #789 "Refactor auth"
+        updated last week.
+axcli: You could try:
+  1. View details of a specific PR
+  2. Check CI status of a PR
+
+you: close the second one
+status: I will run: gh pr close 456
+status: Proceed? [Y/n]
+you: y
+result: Pull request #456 closed.
+
+you: quit
+```
+
+The AI converts your natural language to CLI commands, executes them safely, and summarizes the output in accessible text. Multi-turn context is preserved — "the second one" resolves against the previous result.
+
+You can also type raw commands directly:
+
+```
+you: pr list --state closed
+status: Running: gh pr list --state closed
+result: 5 closed pull requests...
+```
+
+### Setup
+
+Set your AI provider via environment variables:
+
+```bash
+# Option 1: Generic key (recommended)
+export AXCLI_AI_KEY=your-api-key-here
+export AXCLI_AI_PROVIDER=anthropic    # or: openai, ollama
+
+# Option 2: Provider-specific keys (also works)
+export ANTHROPIC_API_KEY=your-key     # for Claude
+export OPENAI_API_KEY=your-key        # for OpenAI/compatible
+
+# Option 3: Local Ollama (no key needed)
+# Just start Ollama: ollama serve
+# axcli auto-detects it on localhost:11434
+```
+
+Optional settings:
+
+```bash
+export AXCLI_AI_URL=http://localhost:11434   # custom API endpoint
+export AXCLI_MODEL=claude-sonnet-4-20250514         # specific model name
+```
+
+### Safety
+
+Commands are classified by safety level:
+
+| Level | What happens | Examples |
+|---|---|---|
+| **Safe** | Auto-executes, no confirmation | `get`, `list`, `describe`, `logs`, `status`, `whoami` |
+| **Confirm** | Asks "Proceed? [Y/n]" | `create`, `apply`, `merge`, `close`, `scale` |
+| **Dangerous** | Requires typing "yes" | `delete`, `drain`, `destroy`, `purge`, `drop` |
+
+The AI generates commands but never classifies their safety — that's done by the allowlist. The full command is always shown before execution.
+
 ## How It Works
 
-axcli is a thin wrapper. It does not interpret commands, call APIs, or use AI. Under the hood:
+In **wrapper mode** (default), axcli is a thin wrapper that does not use AI. Under the hood:
 
 1. Runs your command with `NO_COLOR=1` and `TERM=dumb` to suppress color at source
 2. Captures stdout and stderr
@@ -122,7 +199,7 @@ Python 3.11 or later. No pip dependencies — stdlib only.
 
 ## Documentation
 
-- [Configuration and reference](docs/configuration.md) — all options, detection signals, color maps, symbol tables
+- [Configuration and reference](docs/configuration.md) — all options, AI setup, environment variables, safety levels, color maps, symbol tables
 - [CLI-ACS coverage](docs/cli-acs-coverage.md) — how axcli maps to the CLI-ACS conformance specification
 - [Using axcli with oc](docs/oc-accessibility-guide.md) — real-world OpenShift CLI examples with before/after
 

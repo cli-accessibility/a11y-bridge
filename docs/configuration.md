@@ -9,6 +9,7 @@ Options:
   --domain color          Color & visual accessibility (default, adaptive)
   --domain screen-reader  Force screen reader mode regardless of context
   --domain audio          Text-to-speech output (future)
+  --askai                 Start an AI-powered interactive session
   --raw                   Strip ANSI only, no reformatting
   --passthrough           Just set NO_COLOR=1 TERM=dumb, no processing
   --help, -h              Show help
@@ -51,6 +52,82 @@ Runs the command with `NO_COLOR=1` and `TERM=dumb` environment variables set but
 ```bash
 axcli --passthrough git diff
 ```
+
+## AI Mode (--askai)
+
+Start an interactive session where natural language is converted to CLI commands:
+
+```bash
+axcli --askai gh
+axcli --askai oc
+axcli --askai kubectl
+```
+
+### AI Environment Variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `AXCLI_AI_KEY` | Yes (unless Ollama) | API key for the AI provider |
+| `AXCLI_AI_PROVIDER` | No | Explicit provider: `anthropic`, `openai`, `ollama`. Auto-detected if not set. |
+| `AXCLI_AI_URL` | No | Custom API endpoint (default: provider's standard URL, or `http://localhost:11434` for Ollama) |
+| `AXCLI_MODEL` | No | Model name override (default: `claude-sonnet-4-20250514` for Anthropic, `gpt-4o-mini` for OpenAI, `qwen2.5-coder:7b-instruct` for Ollama) |
+
+Provider-specific keys are also supported as fallbacks:
+
+| Variable | Provider |
+|---|---|
+| `ANTHROPIC_API_KEY` | Anthropic (Claude) |
+| `OPENAI_API_KEY` | OpenAI / compatible APIs |
+
+### Provider Detection Priority
+
+1. `AXCLI_AI_PROVIDER` env var (explicit)
+2. `AXCLI_AI_KEY` + `AXCLI_AI_URL` (provider inferred from URL)
+3. `ANTHROPIC_API_KEY` (Anthropic)
+4. `OPENAI_API_KEY` (OpenAI)
+5. Ollama running on localhost:11434 (auto-detected, no key needed)
+
+### Setup Examples
+
+```bash
+# Claude (Anthropic)
+export AXCLI_AI_KEY=sk-ant-...
+export AXCLI_AI_PROVIDER=anthropic
+
+# OpenAI
+export AXCLI_AI_KEY=sk-...
+export AXCLI_AI_PROVIDER=openai
+
+# Local Ollama (no key, no provider — auto-detected)
+ollama serve &
+ollama pull qwen2.5-coder:7b-instruct
+
+# Azure OpenAI or other compatible endpoint
+export AXCLI_AI_KEY=your-key
+export AXCLI_AI_PROVIDER=openai
+export AXCLI_AI_URL=https://your-endpoint.openai.azure.com/v1
+
+# Custom model
+export AXCLI_MODEL=claude-opus-4-20250514
+```
+
+### Safety Classification
+
+| Level | Behavior | Verbs |
+|---|---|---|
+| **Safe** | Auto-executes | `get`, `list`, `describe`, `status`, `show`, `view`, `logs`, `whoami`, `version`, `help`, `projects`, `pr`, `issue`, `repo` |
+| **Confirm** | Asks "Proceed? [Y/n]" | `create`, `apply`, `patch`, `edit`, `set`, `label`, `scale`, `expose`, `login`, `close`, `merge` |
+| **Dangerous** | Requires typing "yes" | `delete`, `rm`, `remove`, `destroy`, `purge`, `drain`, `drop`, `reset`, `wipe`, `nuke` |
+
+### REPL Commands
+
+| Command | Action |
+|---|---|
+| Natural language | Converted to CLI command via AI |
+| Raw command (e.g., `pr list`) | Executed directly with binary prefix |
+| `repeat` | Repeat the last output |
+| `help` | Show session help |
+| `quit` / `exit` / `q` | End the session |
 
 ## Screen Reader Detection
 

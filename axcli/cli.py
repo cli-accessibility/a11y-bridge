@@ -21,6 +21,7 @@ Options:
   --domain color        Apply color & visual accessibility (default)
   --domain screen-reader  Force screen reader mode (labels, tables, symbols)
   --domain audio        Pipe output through text-to-speech (future)
+  --askai               Start an AI-powered interactive session
   --raw                 Strip ANSI only, no reformatting
   --passthrough         Just set NO_COLOR=1 TERM=dumb, no processing
   --help, -h            Show this help
@@ -30,6 +31,7 @@ Examples:
   axcli oc get pods -n myns
   axcli --domain color gh pr list
   axcli --domain screen-reader oc projects
+  axcli --askai gh                          # AI interactive session
   axcli --raw kubectl logs my-pod
 """
 
@@ -49,6 +51,7 @@ def main() -> int:
     # Parse axcli's own flags
     domain = "color"
     mode = "adaptive"
+    askai = False
     cmd_start = 0
 
     i = 0
@@ -56,6 +59,10 @@ def main() -> int:
         if args[i] == "--domain" and i + 1 < len(args):
             domain = args[i + 1]
             i += 2
+            cmd_start = i
+        elif args[i] == "--askai":
+            askai = True
+            i += 1
             cmd_start = i
         elif args[i] == "--raw":
             mode = "raw"
@@ -75,6 +82,12 @@ def main() -> int:
     if not cmd_args:
         print(USAGE.strip())
         return 0
+
+    # --askai mode: interactive AI session
+    if askai:
+        binary = cmd_args[0]
+        from axcli.repl import start_repl
+        return start_repl(binary)
 
     # Pipe-safe: raw output when stdout is not a TTY
     if not sys.stdout.isatty():
