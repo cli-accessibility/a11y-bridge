@@ -43,7 +43,7 @@ def start_repl(binary: str, domains: set[str] | None = None) -> int:
     if provider:
         voice_hint = ""
         if listener and listener.available:
-            voice_hint = " Type 'v' to use voice input."
+            voice_hint = f" Type 'v' to use voice input ({listener.engine_name})."
         print(f"{B}a11y-bridge{R} {D}— AI session for{R} {B}{binary}{R} {D}({mode_label}){R}")
         if voice_hint:
             print(f"{D}{voice_hint.strip()}{R}")

@@ -195,32 +195,56 @@ class Earcons:
 
 
 class Listener:
-    """Push-to-talk speech-to-text using Vosk.
+    """Push-to-talk speech-to-text.
+
+    Supports two engines (auto-detected, Whisper preferred):
+    - faster-whisper: high accuracy, ~1.5GB model, 1-3s processing
+    - vosk: lower accuracy, ~50MB model, ~200ms processing
+
+    Override: A11Y_STT_ENGINE=whisper or A11Y_STT_ENGINE=vosk
+    Whisper model: A11Y_WHISPER_MODEL=medium (default), small, large-v3
 
     Usage:
         listener = Listener()
         if listener.available:
-            text = listener.listen()  # blocks until user stops speaking
+            text = listener.listen()
     """
 
     def __init__(self):
-        self._model = None
+        self._engine = _detect_stt_engine()
+        self._whisper_model = None
+        self._vosk_model = None
         self._available = False
-        try:
-            import vosk
-            vosk.SetLogLevel(-1)  # suppress vosk logs
-            model_path = os.path.expanduser("~/.cache/a11y-bridge/vosk-model")
-            if os.path.isdir(model_path):
-                self._model = vosk.Model(model_path)
+
+        if self._engine == "whisper":
+            try:
+                from faster_whisper import WhisperModel
+                model_size = os.environ.get("A11Y_WHISPER_MODEL", "medium")
+                print(f"a11y-bridge: Loading Whisper {model_size} model (first load downloads ~1.5GB)...")
+                self._whisper_model = WhisperModel(model_size, device="cpu", compute_type="int8")
                 self._available = True
-        except ImportError:
-            pass
-        except Exception:
-            pass
+            except Exception as e:
+                print(f"a11y-bridge: Whisper failed ({e}), falling back to Vosk")
+                self._engine = "vosk"
+
+        if self._engine == "vosk":
+            try:
+                import vosk
+                vosk.SetLogLevel(-1)
+                model_path = os.path.expanduser("~/.cache/a11y-bridge/vosk-model")
+                if os.path.isdir(model_path):
+                    self._vosk_model = vosk.Model(model_path)
+                    self._available = True
+            except ImportError:
+                pass
 
     @property
     def available(self) -> bool:
         return self._available
+
+    @property
+    def engine_name(self) -> str:
+        return self._engine or "none"
 
     def listen(self) -> str:
         """Record from microphone and return recognized text.
@@ -230,65 +254,100 @@ class Listener:
         if not self._available:
             return ""
 
+        tmpfile = self._record()
+        if not tmpfile:
+            return ""
+
+        try:
+            if self._engine == "whisper":
+                return self._recognize_whisper(tmpfile)
+            else:
+                return self._recognize_vosk(tmpfile)
+        finally:
+            if os.path.exists(tmpfile):
+                os.unlink(tmpfile)
+
+    def _record(self) -> str:
+        """Record audio until Enter is pressed. Returns path to wav file."""
+        import tempfile
+        tmpfile = tempfile.mktemp(suffix=".wav")
+
+        if shutil.which("arecord"):
+            rec_cmd = ["arecord", "-q", "-f", "S16_LE", "-r", "16000", "-c", "1", tmpfile]
+        elif shutil.which("sox"):
+            rec_cmd = ["sox", "-q", "-d", "-r", "16000", "-c", "1", "-b", "16", tmpfile]
+        else:
+            print("a11y-bridge: No recording tool found. Install alsa-utils (arecord) or sox.")
+            return ""
+
+        print("a11y-bridge: Listening... (press Enter when done)")
+        proc = subprocess.Popen(rec_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        try:
+            input()
+        except (EOFError, KeyboardInterrupt):
+            pass
+
+        proc.terminate()
+        try:
+            proc.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+
+        return tmpfile if os.path.exists(tmpfile) else ""
+
+    def _recognize_whisper(self, audio_path: str) -> str:
+        """Recognize speech using faster-whisper."""
+        try:
+            print("a11y-bridge: Processing speech...")
+            segments, info = self._whisper_model.transcribe(audio_path, beam_size=5)
+            text = " ".join(seg.text.strip() for seg in segments)
+            return text.strip()
+        except Exception:
+            return ""
+
+    def _recognize_vosk(self, audio_path: str) -> str:
+        """Recognize speech using Vosk."""
         try:
             import vosk
             import wave
-            import tempfile
-            import threading
+            import json
 
-            tmpfile = tempfile.mktemp(suffix=".wav")
-
-            # Record indefinitely — no -d flag
-            if shutil.which("arecord"):
-                rec_cmd = [
-                    "arecord", "-q", "-f", "S16_LE", "-r", "16000",
-                    "-c", "1", tmpfile,
-                ]
-            elif shutil.which("sox"):
-                rec_cmd = [
-                    "sox", "-q", "-d", "-r", "16000", "-c", "1",
-                    "-b", "16", tmpfile,
-                ]
-            else:
-                return ""
-
-            print("a11y-bridge: Listening... (press Enter when done)")
-            proc = subprocess.Popen(rec_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-            # Wait for Enter in a thread-safe way
-            try:
-                input()
-            except (EOFError, KeyboardInterrupt):
-                pass
-
-            # Stop recording
-            proc.terminate()
-            try:
-                proc.wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-
-            if not os.path.exists(tmpfile):
-                return ""
-
-            # Recognize
-            rec = vosk.KaldiRecognizer(self._model, 16000)
-            with wave.open(tmpfile, "rb") as wf:
+            rec = vosk.KaldiRecognizer(self._vosk_model, 16000)
+            with wave.open(audio_path, "rb") as wf:
                 while True:
                     data = wf.readframes(4000)
                     if len(data) == 0:
                         break
                     rec.AcceptWaveform(data)
 
-            os.unlink(tmpfile)
-
             result = rec.FinalResult()
-            import json
-            text = json.loads(result).get("text", "")
-            return text.strip()
-
+            return json.loads(result).get("text", "").strip()
         except Exception:
             return ""
+
+
+def _detect_stt_engine() -> str | None:
+    """Detect available STT engine. Whisper preferred over Vosk."""
+    explicit = os.environ.get("A11Y_STT_ENGINE", "").lower()
+    if explicit:
+        return explicit if explicit != "none" else None
+
+    try:
+        import faster_whisper  # noqa: F401
+        return "whisper"
+    except ImportError:
+        pass
+
+    try:
+        import vosk  # noqa: F401
+        model_path = os.path.expanduser("~/.cache/a11y-bridge/vosk-model")
+        if os.path.isdir(model_path):
+            return "vosk"
+    except ImportError:
+        pass
+
+    return None
 
 
 def _shell_escape(s: str) -> str:

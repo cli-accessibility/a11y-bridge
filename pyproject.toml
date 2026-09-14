@@ -33,11 +33,16 @@ classifiers = [
 [project.optional-dependencies]
 audio = [
     "piper-tts>=1.6.0",
+    "faster-whisper>=1.2.1",
+]
+audio-basic = [
+    "piper-tts>=1.6.0",
     "vosk>=0.3.45",
 ]
-askai = []  # stdlib urllib is sufficient; httpx is optional for better error handling
+askai = []
 all = [
     "piper-tts>=1.6.0",
+    "faster-whisper>=1.2.1",
     "vosk>=0.3.45",
 ]
 
