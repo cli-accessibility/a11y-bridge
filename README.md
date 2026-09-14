@@ -2,199 +2,129 @@
 
 Make any CLI tool accessible. Zero config, zero dependencies.
 
-axcli wraps any command-line binary and adapts its output based on who is using it — adding color for sighted users or adding text labels for screen reader users. It implements all 15 CLI-ACS color and visual accessibility criteria as runtime compensations.
+## The Problem
+
+CLI tools like `oc`, `kubectl`, `gh`, and `docker` produce output that is hard to use for people with disabilities:
+
+- **Screen reader users** hear tables as a stream of words with no column association — "NAME READY STATUS nginx one one Running" tells you nothing about which value belongs to which header
+- **Low-vision users** get plain monochrome output with no color to distinguish healthy pods from crashing ones
+- **Color-blind users** can't tell red errors from green successes when a tool uses color as the only indicator
+
+Most CLI tools don't have built-in accessibility features. Even when they do, they're inconsistent — every tool has different flags, different env vars, different output formats.
+
+## The Solution
+
+axcli wraps any CLI binary and adapts its output to the user's needs:
+
+```bash
+axcli oc get pods -n myns
+```
+
+That's it. axcli detects who you are and adapts:
+
+**Sighted user** (normal terminal) — adds semantic color:
+
+```
+NAME          READY   STATUS             RESTARTS   AGE
+nginx-abc     1/1     Running            0          3d      ← green
+postgres-xy   0/1     CrashLoopBackOff   5          4d      ← red
+```
+
+**Screen reader user** (NO_COLOR set, or screen reader running) — converts tables to labeled sentences:
+
+```
+status: Running: oc get pods -n myns
+result: 2 item(s).
+result: 1. [OK] NAME: nginx-abc. READY: 1/1. STATUS: Running. RESTARTS: 0. AGE: 3d.
+result: 2. [ERROR] NAME: postgres-xy. READY: 0/1. STATUS: CrashLoopBackOff. RESTARTS: 5. AGE: 4d.
+```
+
+Every value paired with its header. `[OK]` and `[ERROR]` prefixes replace color. `result:` labels serve as screen reader navigation landmarks.
 
 ## Install
 
+From PyPI:
+
 ```bash
+pip install axcli
+```
+
+From source:
+
+```bash
+git clone https://github.com/cli-accessibility/axcli.git
+cd axcli
 pip install .
 ```
 
-Or run directly without installing:
+Or run without installing:
 
 ```bash
 python -m axcli oc get pods
 ```
 
-## Quick Start
+## Usage
+
+Prefix any command with `axcli`:
 
 ```bash
 axcli oc get pods -n myns
 axcli gh pr list
 axcli kubectl get deployments
 axcli docker ps
+axcli git status
 ```
 
-axcli detects your context automatically:
-
-- **Sighted user** (terminal, no screen reader) → adds semantic color to plain output
-- **Screen reader user** (NO_COLOR set, TERM=dumb, or screen reader running) → strips color, adds text labels, converts tables
-
-## Adaptive Behavior
-
-### Sighted Mode
-
-When running in a normal terminal, axcli adds color to make plain output easier to scan:
+axcli detects your context automatically. To force a specific mode:
 
 ```bash
-$ axcli oc get pods
-status: Running: oc get pods
-NAME          READY   STATUS             RESTARTS   AGE
-nginx-abc     1/1     Running            0          3d      ← green
-redis-def     0/1     Pending            2          1h      ← yellow
-postgres-xy   0/1     CrashLoopBackOff   5          4d      ← red
-```
+# Force screen reader mode
+axcli --domain screen-reader oc get pods
 
-What gets colored:
+# Force it via environment
+NO_COLOR=1 axcli oc get pods
+AXCLI_SCREEN_READER=1 axcli oc get pods
 
-| Pattern | Color |
-|---|---|
-| Running, Succeeded, Active, Ready, True, PASS, OK | Green |
-| Pending, Waiting, ContainerCreating, WARN | Yellow |
-| CrashLoopBackOff, Error, Failed, OOMKilled, FAIL | Red |
-| modified (git) | Yellow |
-| deleted (git) | Red |
-| new file (git) | Green |
-| Active project marker (`*`) | Bold green |
-| Table headers (ALL CAPS) | Bold |
-| URLs | Cyan |
-
-### Screen Reader Mode
-
-When `NO_COLOR` is set, `TERM=dumb`, or a screen reader (orca, nvda, jaws) is detected, axcli switches to text-only accessibility:
-
-```bash
-$ NO_COLOR=1 axcli oc get pods
-status: Running: oc get pods
-result: 3 item(s).
-result: 1. [OK] NAME: nginx-abc. READY: 1/1. STATUS: Running. RESTARTS: 0. AGE: 3d.
-result: 2. [WARN] NAME: redis-def. READY: 0/1. STATUS: Pending. RESTARTS: 2. AGE: 1h.
-result: 3. [ERROR] NAME: postgres-xy. READY: 0/1. STATUS: CrashLoopBackOff. RESTARTS: 5. AGE: 4d.
-```
-
-What it does:
-
-- Strips all ANSI escape sequences
-- Converts tables to labeled sentences (each value paired with its header)
-- Adds `[OK]`/`[WARN]`/`[ERROR]` prefixes based on color semantics
-- Extracts OSC 8 hyperlink URLs as visible text
-- Replaces Unicode symbols with text alternatives (✓→`[OK]`, ✗→`[FAIL]`, ⚠→`[WARN]`)
-- Converts inverse video to `[SELECTED: text]`
-- Labels all output with `result:`/`error:`/`status:` prefixes
-
-## Options
-
-```bash
-axcli [options] <command> [args...]
-
-Options:
-  --domain color          Color & visual accessibility (default, adaptive)
-  --domain screen-reader  Force screen reader mode regardless of context
-  --domain audio          Text-to-speech output (future)
-  --raw                   Strip ANSI only, no reformatting
-  --passthrough           Just set NO_COLOR=1 TERM=dumb, no processing
-  --help, -h              Show help
-  --version               Show version
-```
-
-### --domain color (default)
-
-Adaptive behavior — adds color for sighted users, adds text labels for screen reader users. This is the default when no `--domain` is specified.
-
-```bash
-axcli oc get pods                       # same as --domain color
-axcli --domain color oc get pods        # explicit
-```
-
-### --domain screen-reader
-
-Forces screen reader mode regardless of terminal context. Use when you want text labels and table conversion even in a normal terminal.
-
-```bash
-axcli --domain screen-reader oc projects
-status: Running: oc projects
-result: You have access to the following projects...
-result:   * arewm-tenant - arewm
-result:     gatekeeper-tenant - gatekeeper
-```
-
-### --raw
-
-Strips all ANSI escape sequences but preserves the original output structure. No table conversion, no labels, no color additions.
-
-```bash
+# Strip ANSI only, no reformatting
 axcli --raw kubectl logs my-pod
-```
 
-### --passthrough
-
-Runs the command with `NO_COLOR=1` and `TERM=dumb` environment variables set but does not process the output at all. Use when the binary itself handles these signals correctly.
-
-```bash
+# Just set NO_COLOR=1 TERM=dumb, don't touch output
 axcli --passthrough git diff
 ```
 
-## Screen Reader Detection
+## How It Works
 
-axcli automatically detects screen reader usage via:
+axcli is a thin wrapper. It does not interpret commands, call APIs, or use AI. Under the hood:
 
-| Signal | Triggers accessible mode |
-|---|---|
-| `NO_COLOR` env var set (non-empty) | Yes |
-| `TERM=dumb` | Yes |
-| `AXCLI_SCREEN_READER=1` env var | Yes |
-| `orca` process running (Linux) | Yes |
-| `nvda` or `jaws` process running | Yes |
-| None of the above | No — sighted mode (add color) |
+1. Runs your command with `NO_COLOR=1` and `TERM=dumb` to suppress color at source
+2. Captures stdout and stderr
+3. **Sighted mode:** parses status words (Running, Error, Pending) and adds ANSI color
+4. **Screen reader mode:** strips remaining ANSI, converts tables to labeled sentences, interprets color semantics as text prefixes, replaces Unicode symbols with text alternatives, extracts hyperlink URLs
+5. Outputs the result with `status:`/`result:`/`error:` labels
 
-To force screen reader mode without setting global env vars:
+Pipe-safe: when stdout is not a terminal, output passes through raw (ANSI-stripped, no labels) so scripts and pipes work normally.
 
-```bash
-AXCLI_SCREEN_READER=1 axcli oc get pods
-```
+## What Gets Adapted
 
-## Pipes
+**For sighted users** — color is added to: status words (Running→green, Error→red, Pending→yellow), active markers (bold green), table headers (bold), URLs (cyan).
 
-When stdout is not a terminal (piped or redirected), axcli strips ANSI but passes output through without labels, colors, or reformatting:
-
-```bash
-axcli oc get pods              # Adaptive (terminal)
-axcli oc get pods | grep nginx  # Raw stripped output (pipe)
-axcli oc get pods > pods.txt    # Raw stripped output (file)
-```
-
-## CLI-ACS Coverage
-
-axcli compensates for all 15 criteria in the CLI-ACS Color & Visual Presentation domain:
-
-| Criterion | Sighted mode | Screen reader mode |
-|---|---|---|
-| CV-1: Color not sole info | Adds color to status words | Adds text prefixes `[OK]`/`[ERROR]`/`[WARN]` |
-| CV-2: NO_COLOR | N/A (adds color) | Detects and enables text mode |
-| CV-3: --no-color | N/A (adds color) | Strips all ANSI |
-| CV-4: TTY-aware | Detects TTY for mode | Strips when piped |
-| CV-5: TERM=dumb | N/A (adds color) | Detects and enables text mode |
-| CV-6-10: Color config | Handles at source | Strips everything |
-| CV-11: High contrast | N/A | Plain text — no contrast issues |
-| CV-12: Inverse video | Preserves | Converts to `[SELECTED: text]` |
-| CV-13: OSC 8 hyperlinks | Preserves | Extracts URL as text |
-| CV-14: FG/BG contrast | Adds safe colors | Strips all color |
-| CV-15: Unicode symbols | Preserves | Replaces with text alternatives |
-
-### Symbol Replacement (Screen Reader Mode)
-
-| Symbol | Replacement | Symbol | Replacement |
-|---|---|---|---|
-| ✓ ✔ ✅ | `[OK]` | ✗ ✘ ❌ | `[FAIL]` |
-| ● ◉ ◆ ⬤ | `[*]` | ○ ◇ | `[ ]` |
-| ⚠ | `[WARN]` | ℹ ⓘ | `[INFO]` |
-| ▶ ▷ ► → | `->` | ← | `<-` |
-| 🔴 | `[FAIL]` | 🟢 | `[OK]` |
-| 🟡 | `[WARN]` | ⏳ | `[WAIT]` |
+**For screen reader users:**
+- Tables → labeled sentences (`NAME: nginx. STATUS: Running.`)
+- Color → text prefixes (`[OK]`, `[ERROR]`, `[WARN]`)
+- Unicode symbols → text (`✓`→`[OK]`, `✗`→`[FAIL]`, `⚠`→`[WARN]`)
+- Inverse video → `[SELECTED: text]`
+- OSC 8 hyperlinks → `text (link: URL)`
+- All output labeled with `result:`/`error:`/`status:`
 
 ## Requirements
 
 Python 3.11 or later. No pip dependencies — stdlib only.
+
+## Documentation
+
+- [Configuration and reference](docs/configuration.md) — all options, detection signals, color maps, symbol tables
+- [CLI-ACS coverage](docs/cli-acs-coverage.md) — how axcli maps to the CLI-ACS conformance specification
+- [Using axcli with oc](docs/oc-accessibility-guide.md) — real-world OpenShift CLI examples with before/after
 
 ## License
 
