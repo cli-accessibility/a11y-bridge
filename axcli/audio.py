@@ -124,10 +124,15 @@ class Speaker:
             )
             self._proc.wait()
             return
-        # Pipe text through piper CLI → aplay/paplay
-        player = "paplay" if shutil.which("paplay") else "aplay"
+        # Pipe text through piper CLI → audio player
+        if shutil.which("paplay"):
+            player_cmd = "paplay --raw --rate=22050 --format=s16le --channels=1"
+        elif shutil.which("aplay"):
+            player_cmd = "aplay -r 22050 -f S16_LE -t raw -c 1 -q"
+        else:
+            return
         self._proc = subprocess.Popen(
-            f'echo {_shell_escape(text)} | piper --model {_shell_escape(model)} --output-raw | {player} -r 22050 -f S16_LE -t raw -c 1 -q',
+            f'echo {_shell_escape(text)} | piper --model {_shell_escape(model)} --output-raw 2>/dev/null | {player_cmd}',
             shell=True,  # ponytail: shell=True needed for pipe chain; text is escaped
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
