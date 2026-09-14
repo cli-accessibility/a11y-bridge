@@ -95,9 +95,9 @@ def main() -> int:
         return result.exit_code
 
     # Full mode or color mode — interpret colors semantically, then format
-    a11y_stdout = accessible(result.stdout)
-    a11y_stderr = accessible(result.stderr)
-    output = format_output(a11y_stdout, a11y_stderr, result.exit_code)
+    a11y_stdout, stdout_sem = accessible(result.stdout)
+    a11y_stderr, _ = accessible(result.stderr)
+    output = format_output(a11y_stdout, a11y_stderr, result.exit_code, stdout_sem)
 
     if output:
         print(output)

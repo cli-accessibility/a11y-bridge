@@ -80,22 +80,42 @@ _SYMBOL_MAP = {
 _SYMBOL_RE = re.compile("|".join(re.escape(s) for s in _SYMBOL_MAP))
 
 
-def accessible(text: str) -> str:
+def accessible(text: str) -> tuple[str, dict[int, str]]:
     """Convert ANSI-colored text to accessible plain text.
 
-    This is the main entry point. It:
-    1. Extracts OSC 8 hyperlink URLs and appends them as text (CV-13)
-    2. Interprets SGR color codes as semantic prefixes (CV-1)
-    3. Converts bold/underline to text markers (CV-12)
-    4. Strips all remaining ANSI sequences (CV-2,3,4,5)
-    5. Replaces Unicode symbols with text alternatives (CV-15)
+    Returns (clean_text, line_semantics) where line_semantics maps
+    line numbers to semantic prefixes (e.g., {1: "OK", 2: "WARN"}).
+    The caller applies prefixes AFTER table formatting to avoid
+    shifting column positions.
+
+    Pipeline:
+    1. Extract OSC 8 hyperlink URLs (CV-13)
+    2. Convert inverse video to text markers (CV-12)
+    3. Detect per-line color semantics (CV-1) — stored separately
+    4. Strip all ANSI (CV-2/3/4/5)
+    5. Replace Unicode symbols (CV-15)
     """
     text = _extract_hyperlinks(text)
-    text = _interpret_colors(text)
     text = _convert_styling(text)
+    semantics = _detect_all_semantics(text)
     text = _ALL_ESC_RE.sub("", text)
     text = _replace_symbols(text)
-    return text
+    return text, semantics
+
+
+def accessible_simple(text: str) -> str:
+    """Convenience wrapper that applies semantics inline.
+
+    Use when table parsing is not needed (e.g., error messages).
+    """
+    clean, semantics = accessible(text)
+    if not semantics:
+        return clean
+    lines = clean.split("\n")
+    for i, sem in semantics.items():
+        if i < len(lines) and not _HAS_PREFIX_RE.match(lines[i]):
+            lines[i] = f"[{sem}] {lines[i]}"
+    return "\n".join(lines)
 
 
 def strip(text: str) -> str:
@@ -116,20 +136,18 @@ def _extract_hyperlinks(text: str) -> str:
     return _OSC8_RE.sub(_repl, text)
 
 
-def _interpret_colors(text: str) -> str:
-    """CV-1: Detect color-only semantics and inject text prefixes.
+def _detect_all_semantics(text: str) -> dict[int, str]:
+    """CV-1: Detect per-line color semantics from ANSI codes.
 
-    Scans for SGR foreground color codes at the start of a line (or after
-    whitespace). If the colored text doesn't already have a text prefix
-    like [ERROR] or Error:, injects one based on the color.
-
-    Only prefixes lines where color was the sole semantic signal.
+    Returns {line_number: semantic_label} for lines where color
+    carries meaning. Called before ANSI stripping.
     """
-    lines = text.split("\n")
-    result = []
-    for line in lines:
-        result.append(_interpret_line_color(line))
-    return "\n".join(result)
+    result = {}
+    for i, line in enumerate(text.split("\n")):
+        sem = _detect_line_semantic(line)
+        if sem:
+            result[i] = sem
+    return result
 
 
 _SGR_START_RE = re.compile(r"^(\s*)\x1b\[([0-9;]*)m")
@@ -138,32 +156,16 @@ _HAS_PREFIX_RE = re.compile(
 )
 
 
-def _interpret_line_color(line: str) -> str:
-    """Add a text prefix to a line if color is its only semantic signal."""
+def _detect_line_semantic(line: str) -> str | None:
+    """Detect the color semantic of a line without modifying it."""
     m = _SGR_START_RE.search(line)
     if not m:
-        return line
-
-    # Extract the SGR codes
+        return None
     codes = m.group(2).split(";")
-    semantic = None
     for code in codes:
         if code in _SGR_SEMANTICS:
-            semantic = _SGR_SEMANTICS[code]
-            break
-
-    if not semantic:
-        return line
-
-    # Check if line already has a text prefix — don't double-label
-    stripped = _ALL_ESC_RE.sub("", line)
-    if _HAS_PREFIX_RE.match(stripped):
-        return line
-
-    # Inject prefix after leading whitespace
-    indent = m.group(1)
-    rest = line[len(indent):]
-    return f"{indent}[{semantic}] {rest}"
+            return _SGR_SEMANTICS[code]
+    return None
 
 
 def _convert_styling(text: str) -> str:

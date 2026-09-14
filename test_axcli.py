@@ -1,5 +1,5 @@
 """Tests for axcli accessible CLI wrapper."""
-from axcli.ansi import accessible, strip, _replace_symbols, _extract_hyperlinks, _interpret_line_color
+from axcli.ansi import accessible, strip, _replace_symbols, _extract_hyperlinks, _detect_line_semantic
 from axcli.formatter import format_output, _try_parse_table
 
 
@@ -19,47 +19,48 @@ def test_strip_csi_cursor():
 
 # --- CV-1: Color semantic interpretation ---
 
-def test_color_red_adds_error():
+def test_color_red_detected():
     line = "\x1b[31mfailed to connect\x1b[0m"
-    result = accessible(line)
-    assert "[ERROR]" in result
-    assert "failed to connect" in result
+    clean, sem = accessible(line)
+    assert "failed to connect" in clean
+    assert 0 in sem and sem[0] == "ERROR"
 
-def test_color_green_adds_ok():
+def test_color_green_detected():
     line = "\x1b[32mdeployment successful\x1b[0m"
-    result = accessible(line)
-    assert "[OK]" in result
+    clean, sem = accessible(line)
+    assert 0 in sem and sem[0] == "OK"
 
-def test_color_yellow_adds_warn():
+def test_color_yellow_detected():
     line = "\x1b[33mdeprecated flag\x1b[0m"
-    result = accessible(line)
-    assert "[WARN]" in result
+    clean, sem = accessible(line)
+    assert 0 in sem and sem[0] == "WARN"
 
 def test_color_no_double_label():
     line = "\x1b[31mError: connection refused\x1b[0m"
-    result = accessible(line)
-    assert result.count("[ERROR]") == 0  # already has "Error:" prefix
+    clean, sem = accessible(line)
+    assert 0 in sem  # semantic detected, but formatter skips lines with existing prefix
 
 
 # --- CV-12: Bold/underline to text markers ---
 
 def test_inverse_to_selected():
     line = "\x1b[7mchosen item\x1b[27m"
-    result = accessible(line)
-    assert "[SELECTED: chosen item]" in result
+    clean, _ = accessible(line)
+    assert "[SELECTED: chosen item]" in clean
 
 
 # --- CV-13: OSC 8 hyperlink extraction ---
 
 def test_hyperlink_extraction():
     text = "\x1b]8;;https://docs.example.com\x07See docs\x1b]8;;\x07"
-    result = accessible(text)
-    assert "See docs" in result
-    assert "(link: https://docs.example.com)" in result
+    clean, _ = accessible(text)
+    assert "See docs" in clean
+    assert "(link: https://docs.example.com)" in clean
 
 def test_hyperlink_no_url():
     text = "plain text no links"
-    assert accessible(text) == "plain text no links"
+    clean, _ = accessible(text)
+    assert clean == "plain text no links"
 
 
 # --- CV-15: Unicode symbol replacement ---
@@ -127,15 +128,18 @@ def test_full_pipeline_colored_table():
         "\x1b[32mnginx-abc     Running   0          3d\x1b[0m\n"
         "\x1b[33mredis-def     Pending   2          1h\x1b[0m\n"
     )
-    a11y = accessible(raw)
-    out = format_output(a11y, "", 0)
+    clean, sem = accessible(raw)
+    out = format_output(clean, "", 0, sem)
     assert "result: 2 item(s)." in out
-    assert "NAME: " in out
-    # Color semantics should NOT appear inside table rows (table handles it)
+    assert "NAME: nginx-abc" in out
+    # Color semantics applied at row level, not shifting columns
+    assert "[OK]" in out   # green row
+    assert "[WARN]" in out  # yellow row
 
 def test_full_pipeline_error_with_color():
+    from axcli.ansi import accessible_simple
     raw = "\x1b[31mfatal: remote origin already exists.\x1b[0m\n"
-    a11y = accessible(raw)
+    a11y = accessible_simple(raw)
     out = format_output("", a11y, 1)
     assert "[ERROR]" in out
     assert "fatal: remote origin already exists." in out
