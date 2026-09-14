@@ -67,6 +67,25 @@ In the AI session, type `v` then speak your command. Press Ctrl+C to stop record
 | espeak-ng | Robotic (formant) | ~50ms | System package (usually pre-installed) |
 | say | System voice | ~100ms | macOS built-in |
 
+### System Prerequisites
+
+Audio features require system packages for playback and recording:
+
+```bash
+# Linux (Fedora/RHEL)
+sudo dnf install espeak-ng pulseaudio-utils alsa-utils
+
+# Linux (Ubuntu/Debian)
+sudo apt install espeak-ng pulseaudio-utils alsa-utils
+
+# macOS — use built-in 'say' for TTS, or:
+brew install espeak-ng
+```
+
+- `espeak-ng` — fallback TTS engine (robotic but instant)
+- `pulseaudio-utils` — provides `paplay` for Piper audio output
+- `alsa-utils` — provides `arecord` for microphone recording (voice input)
+
 ### Voice Input (STT) Setup
 
 ```bash
@@ -76,6 +95,8 @@ cd ~/.cache/axcli
 curl -sL https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip -o model.zip
 unzip -q model.zip && mv vosk-model-small-en-us-0.15 vosk-model && rm model.zip
 ```
+
+Requires `arecord` (Linux) or `sox` (cross-platform) for microphone capture.
 
 ## --raw
 
@@ -139,7 +160,9 @@ export AXCLI_AI_KEY=sk-...
 export AXCLI_AI_PROVIDER=openai
 
 # Local Ollama (no key, no provider — auto-detected)
-ollama serve &
+# Install from https://ollama.com/download, then:
+ollama serve
+ollama pull qwen2.5-coder:7b-instruct   # ~4.7GB download, one-time &
 ollama pull qwen2.5-coder:7b-instruct
 
 # Azure OpenAI or other compatible endpoint

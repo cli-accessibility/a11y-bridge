@@ -43,18 +43,29 @@ Every value paired with its header. `[OK]` and `[ERROR]` prefixes replace color.
 
 ## Install
 
-From PyPI:
+The core package has zero dependencies. Install only the domains you need:
 
 ```bash
+# Core only — color, screen reader, table formatting (zero deps)
 pip install axcli
+
+# With audio — TTS (Piper natural voice) + STT (Vosk voice input)
+pip install axcli[audio]
+
+# Everything
+pip install axcli[all]
 ```
+
+The AI mode (`--askai`) needs an API key but no extra pip packages — it uses stdlib urllib.
 
 From source:
 
 ```bash
 git clone https://github.com/cli-accessibility/axcli.git
 cd axcli
-pip install .
+pip install .              # core only
+pip install .[audio]       # with audio
+pip install .[all]         # everything
 ```
 
 Or run without installing:
@@ -146,8 +157,10 @@ export ANTHROPIC_API_KEY=your-key     # for Claude
 export OPENAI_API_KEY=your-key        # for OpenAI/compatible
 
 # Option 3: Local Ollama (no key needed)
-# Just start Ollama: ollama serve
-# axcli auto-detects it on localhost:11434
+# Install: https://ollama.com/download
+ollama serve                              # start the server
+ollama pull qwen2.5-coder:7b-instruct    # download a model (~4.7GB, one-time)
+# axcli auto-detects Ollama on localhost:11434
 ```
 
 Optional settings:
@@ -196,33 +209,63 @@ status: Running: gh pr list
 you: quit
 ```
 
-### Audio setup
+### Quick setup
 
-TTS works out of the box if espeak-ng is installed (most Linux systems). For natural-sounding voice:
+After installing, run `axcli setup` to check prerequisites and download models:
 
 ```bash
-# Install Piper neural TTS (optional, recommended)
+pip install axcli[audio]
+axcli setup
+```
+
+This checks for system packages, Python packages, and offers to download the TTS and STT models automatically.
+
+### Manual audio prerequisites
+
+**System packages needed** (install once):
+
+```bash
+# Linux (Fedora/RHEL)
+sudo dnf install espeak-ng pulseaudio-utils  # TTS engine + paplay for audio output
+
+# Linux (Ubuntu/Debian)
+sudo apt install espeak-ng pulseaudio-utils  # TTS engine + paplay for audio output
+
+# For voice input (microphone recording):
+sudo dnf install alsa-utils   # provides arecord (Fedora/RHEL)
+sudo apt install alsa-utils   # provides arecord (Ubuntu/Debian)
+
+# macOS — espeak-ng via Homebrew, or use built-in 'say'
+brew install espeak-ng
+```
+
+### Piper (natural voice) setup
+
+```bash
+# Install Piper neural TTS (optional, recommended over espeak-ng)
 pip install piper-tts
 
-# Download a voice model (~60MB, one-time)
+# Download voice model + config (~60MB, one-time, both files required)
 mkdir -p ~/.cache/axcli/piper
 cd ~/.cache/axcli/piper
 curl -sL https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx -o en_US-lessac-medium.onnx
 curl -sL https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json -o en_US-lessac-medium.onnx.json
 ```
 
-For voice input:
+### Voice input (Vosk STT) setup
 
 ```bash
-# Install Vosk STT (optional)
+# Install Vosk speech-to-text
 pip install vosk
 
-# Download speech model (~50MB, one-time)
+# Download speech recognition model (~50MB, one-time)
 mkdir -p ~/.cache/axcli
 cd ~/.cache/axcli
 curl -sL https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip -o model.zip
 unzip -q model.zip && mv vosk-model-small-en-us-0.15 vosk-model && rm model.zip
 ```
+
+Requires `arecord` (Linux ALSA) or `sox` for microphone recording.
 
 ### Audio settings
 
@@ -259,15 +302,16 @@ Pipe-safe: when stdout is not a terminal, output passes through raw (ANSI-stripp
 
 ## Requirements
 
-Python 3.11 or later. Core features (wrapper, color, screen reader) have zero pip dependencies — stdlib only.
+Python 3.11 or later.
 
-Optional dependencies for additional features:
-
-| Feature | Install | What it adds |
+| Install | What you get | Dependencies |
 |---|---|---|
-| AI mode (--askai) | Set `AXCLI_AI_KEY` | Natural language → CLI commands via Claude/OpenAI/Ollama |
-| Natural voice (TTS) | `pip install piper-tts` | Human-quality speech output (default: espeak-ng, robotic) |
-| Voice input (STT) | `pip install vosk` | Speak commands instead of typing |
+| `pip install axcli` | Color, screen reader mode, table formatting | None (stdlib only) |
+| `pip install axcli[audio]` | + TTS (Piper natural voice) + STT (Vosk voice input) | piper-tts, vosk |
+| `pip install axcli[all]` | Everything above | piper-tts, vosk |
+| `--askai` flag | + AI interactive mode (natural language → commands) | None (set `AXCLI_AI_KEY`) |
+
+Audio also needs system packages: `espeak-ng` (Linux, usually pre-installed) or Piper voice model (~60MB, one-time download).
 
 ## Documentation
 
