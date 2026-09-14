@@ -78,7 +78,7 @@ def _get_api_key() -> str:
 def _call_anthropic(messages: list[dict], system: str) -> str:
     key = _get_api_key()
     body = json.dumps({
-        "model": os.environ.get("AXCLI_MODEL", "claude-sonnet-4-20250514"),
+        "model": os.environ.get("AXCLI_MODEL", "claude-sonnet-4"),
         "max_tokens": 1024,
         "system": system,
         "messages": messages,
