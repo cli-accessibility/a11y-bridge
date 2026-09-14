@@ -78,19 +78,29 @@ class Speaker:
         text = text.replace("result: ", "").replace("status: ", "").replace("error: ", "error, ")
         # Strip ANSI
         text = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", text)
+        # Replace em-dash and en-dash with comma (piper chokes on these)
+        text = text.replace("—", ", ").replace("–", ", ")
+        # Replace slashes in repo paths with " slash " for speech
+        text = re.sub(r"(\w)/(\w)", r"\1 slash \2", text)
         # Shorten URLs — say "link to example.com" instead of the full URL
         text = re.sub(r"https?://([^/\s]+)\S*", r"link to \1", text)
         # Shorten SHA hashes (>12 hex chars) — say "hash" instead of reading 64 chars
         text = re.sub(r"\b[a-f0-9]{12,}\b", "hash", text)
         # Shorten image digests (sha256:abc123...)
         text = re.sub(r"sha256:[a-f0-9]+", "digest", text)
+        # Remove special characters that confuse TTS
+        text = re.sub(r"[`\"'{}()\[\]<>|\\~^]", " ", text)
         # Clean up repeated dots/dashes
         text = re.sub(r"[.\-_]{3,}", " ", text)
         # Clean up multiple spaces
         text = re.sub(r"\s{2,}", " ", text)
 
-        if not text.strip():
+        text = text.strip()
+        if not text:
             return
+        # Truncate very long lines — piper struggles with >200 chars
+        if len(text) > 200:
+            text = text[:200]
 
         try:
             if self._engine == "piper":
