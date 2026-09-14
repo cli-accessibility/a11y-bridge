@@ -93,7 +93,9 @@ class Speaker:
             return
 
         try:
-            if self._engine == "espeak-ng":
+            if self._engine == "piper":
+                self._speak_piper(text)
+            elif self._engine == "espeak-ng":
                 self._proc = subprocess.Popen(
                     ["espeak-ng", "-s", str(self._rate), "--", text],
                     stdout=subprocess.DEVNULL,
@@ -109,6 +111,28 @@ class Speaker:
                 self._proc.wait()
         except Exception:
             pass
+
+    def _speak_piper(self, text: str):
+        """Speak using Piper neural TTS — natural sounding voice."""
+        model_dir = os.path.expanduser("~/.cache/axcli/piper")
+        model = os.environ.get("AXCLI_PIPER_MODEL", os.path.join(model_dir, "en_US-lessac-medium.onnx"))
+        if not os.path.exists(model):
+            # Fallback to espeak-ng if piper model missing
+            self._proc = subprocess.Popen(
+                ["espeak-ng", "-s", str(self._rate), "--", text],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            self._proc.wait()
+            return
+        # Pipe text through piper CLI → aplay/paplay
+        player = "paplay" if shutil.which("paplay") else "aplay"
+        self._proc = subprocess.Popen(
+            f'echo {_shell_escape(text)} | piper --model {_shell_escape(model)} --output-raw | {player} -r 22050 -f S16_LE -t raw -c 1 -q',
+            shell=True,  # ponytail: shell=True needed for pipe chain; text is escaped
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        self._proc.wait()
 
 
 class Earcons:
@@ -241,6 +265,12 @@ class Listener:
             return ""
 
 
+def _shell_escape(s: str) -> str:
+    """Escape string for shell use in subprocess with shell=True."""
+    import shlex
+    return shlex.quote(s)
+
+
 def _detect_tts_engine() -> str | None:
     """Detect available TTS engine."""
     explicit = os.environ.get("AXCLI_TTS_ENGINE", "").lower()
@@ -249,6 +279,17 @@ def _detect_tts_engine() -> str | None:
     if explicit:
         return explicit
 
+    # Prefer piper (natural voice) if model exists
+    piper_model = os.path.expanduser("~/.cache/axcli/piper/en_US-lessac-medium.onnx")
+    if shutil.which("piper") and os.path.exists(piper_model):
+        return "piper"
+    # ponytail: also check if piper is importable (pip install piper-tts adds CLI)
+    if os.path.exists(piper_model):
+        try:
+            import piper  # noqa: F401
+            return "piper"
+        except ImportError:
+            pass
     if shutil.which("espeak-ng"):
         return "espeak-ng"
     if shutil.which("say"):  # macOS
