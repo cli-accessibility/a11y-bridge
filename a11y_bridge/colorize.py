@@ -1,6 +1,6 @@
 """Add semantic color to plain text output.
 
-When a sighted user runs axcli on a binary that produces plain/uncolored
+When a sighted user runs a11y-bridge on a binary that produces plain/uncolored
 output, this module detects patterns and adds ANSI color to enhance
 readability — the inverse of stripping.
 """

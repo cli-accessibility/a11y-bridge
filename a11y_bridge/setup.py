@@ -1,4 +1,4 @@
-"""axcli setup — download models and check prerequisites."""
+"""a11y-bridge setup — download models and check prerequisites."""
 import os
 import shutil
 import urllib.request
@@ -7,18 +7,18 @@ import zipfile
 
 PIPER_MODEL_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx"
 PIPER_CONFIG_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json"
-PIPER_DIR = os.path.expanduser("~/.cache/axcli/piper")
+PIPER_DIR = os.path.expanduser("~/.cache/a11y-bridge/piper")
 PIPER_MODEL = os.path.join(PIPER_DIR, "en_US-lessac-medium.onnx")
 PIPER_CONFIG = os.path.join(PIPER_DIR, "en_US-lessac-medium.onnx.json")
 
 VOSK_MODEL_URL = "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"
-VOSK_DIR = os.path.expanduser("~/.cache/axcli")
+VOSK_DIR = os.path.expanduser("~/.cache/a11y-bridge")
 VOSK_MODEL = os.path.join(VOSK_DIR, "vosk-model")
 
 
 def run_setup() -> int:
     """Check prerequisites and download models."""
-    print("axcli setup")
+    print("a11y-bridge setup")
     print("=" * 40)
     print()
 
@@ -33,8 +33,8 @@ def run_setup() -> int:
 
     # Python packages
     print("Python packages:")
-    ok &= _check_import("piper", "Piper neural TTS", "pip install axcli[audio]")
-    ok &= _check_import("vosk", "Vosk speech-to-text", "pip install axcli[audio]")
+    ok &= _check_import("piper", "Piper neural TTS", "pip install a11y-bridge[audio]")
+    ok &= _check_import("vosk", "Vosk speech-to-text", "pip install a11y-bridge[audio]")
     print()
 
     # Models
@@ -62,27 +62,27 @@ def run_setup() -> int:
 
     # AI provider
     print("AI provider (for --askai):")
-    ai_key = os.environ.get("AXCLI_AI_KEY") or os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    ai_key = os.environ.get("A11Y_AI_KEY") or os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("OPENAI_API_KEY")
     if ai_key:
-        provider = os.environ.get("AXCLI_AI_PROVIDER", "auto-detected")
+        provider = os.environ.get("A11Y_AI_PROVIDER", "auto-detected")
         print(f"  [OK] API key set (provider: {provider})")
     elif shutil.which("ollama"):
         print(f"  [OK] Ollama found at {shutil.which('ollama')}")
     else:
         print(f"  [MISSING] No AI provider configured")
-        print(f"  Set AXCLI_AI_KEY and AXCLI_AI_PROVIDER, or install Ollama")
+        print(f"  Set A11Y_AI_KEY and A11Y_AI_PROVIDER, or install Ollama")
         # Not a hard failure — AI is optional
 
     print()
     if ok:
         print("Setup complete. Ready to use:")
-        print("  axcli gh pr list                     # wrapper mode")
-        print("  axcli --domain audio gh pr list       # with voice output")
-        print("  axcli --askai gh                      # AI interactive mode")
-        print("  axcli --domain audio --askai gh       # AI + voice")
+        print("  a11y-bridge gh pr list                     # wrapper mode")
+        print("  a11y-bridge --domain audio gh pr list       # with voice output")
+        print("  a11y-bridge --askai gh                      # AI interactive mode")
+        print("  a11y-bridge --domain audio --askai gh       # AI + voice")
     else:
-        print("Some components are missing. axcli core still works:")
-        print("  axcli gh pr list")
+        print("Some components are missing. a11y-bridge core still works:")
+        print("  a11y-bridge gh pr list")
 
     return 0
 

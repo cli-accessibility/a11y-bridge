@@ -25,16 +25,16 @@ jobs:
         run: pip install .
 
       - name: Run tests
-        run: python test_axcli.py
+        run: python test_a11y_bridge.py
 
       - name: Smoke test - help
-        run: python -m axcli --help
+        run: python -m a11y_bridge --help
 
       - name: Smoke test - version
-        run: python -m axcli --version
+        run: python -m a11y_bridge --version
 
       - name: Smoke test - wrap echo
-        run: python -m axcli echo "hello from CI"
+        run: python -m a11y_bridge echo "hello from CI"
 
       - name: Build distribution
         run: |
@@ -44,4 +44,4 @@ jobs:
       - name: Verify wheel installs cleanly
         run: |
           pip install dist/*.whl --force-reinstall
-          axcli --version
+          a11y-bridge --version

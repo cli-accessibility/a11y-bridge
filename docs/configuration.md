@@ -3,7 +3,7 @@
 ## Options
 
 ```
-axcli [options] <command> [args...]
+a11y-bridge [options] <command> [args...]
 
 Options:
   --domain color          Color & visual accessibility (default, adaptive)
@@ -21,8 +21,8 @@ Options:
 Adaptive behavior — adds color for sighted users, adds text labels for screen reader users. This is the default when no `--domain` is specified.
 
 ```bash
-axcli oc get pods                       # same as --domain color
-axcli --domain color oc get pods        # explicit
+a11y-bridge oc get pods                       # same as --domain color
+a11y-bridge --domain color oc get pods        # explicit
 ```
 
 ## Domain: screen-reader
@@ -30,7 +30,7 @@ axcli --domain color oc get pods        # explicit
 Forces screen reader mode regardless of terminal context. Use when you want text labels and table conversion even in a normal terminal.
 
 ```bash
-axcli --domain screen-reader oc projects
+a11y-bridge --domain screen-reader oc projects
 status: Running: oc projects
 result: You have access to the following projects...
 result:   * arewm-tenant - arewm
@@ -43,10 +43,10 @@ Speaks command output using text-to-speech. In `--askai` mode, also supports voi
 
 ```bash
 # Speak output of any command
-axcli --domain audio oc get pods
+a11y-bridge --domain audio oc get pods
 
 # AI session with voice output and input
-axcli --domain audio --askai gh
+a11y-bridge --domain audio --askai gh
 ```
 
 In the AI session, type `v` then speak your command. Press Ctrl+C to stop recording.
@@ -55,9 +55,9 @@ In the AI session, type `v` then speak your command. Press Ctrl+C to stop record
 
 | Variable | Default | Description |
 |---|---|---|
-| `AXCLI_TTS_ENGINE` | auto-detect | Force TTS engine: `piper`, `espeak-ng`, `say`, `none` |
-| `AXCLI_TTS_RATE` | `170` | Speech rate in words per minute |
-| `AXCLI_PIPER_MODEL` | `~/.cache/axcli/piper/en_US-lessac-medium.onnx` | Path to Piper voice model |
+| `A11Y_TTS_ENGINE` | auto-detect | Force TTS engine: `piper`, `espeak-ng`, `say`, `none` |
+| `A11Y_TTS_RATE` | `170` | Speech rate in words per minute |
+| `A11Y_PIPER_MODEL` | `~/.cache/a11y-bridge/piper/en_US-lessac-medium.onnx` | Path to Piper voice model |
 
 ### TTS Engine Priority
 
@@ -90,8 +90,8 @@ brew install espeak-ng
 
 ```bash
 pip install vosk
-mkdir -p ~/.cache/axcli
-cd ~/.cache/axcli
+mkdir -p ~/.cache/a11y-bridge
+cd ~/.cache/a11y-bridge
 curl -sL https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip -o model.zip
 unzip -q model.zip && mv vosk-model-small-en-us-0.15 vosk-model && rm model.zip
 ```
@@ -103,7 +103,7 @@ Requires `arecord` (Linux) or `sox` (cross-platform) for microphone capture.
 Strips all ANSI escape sequences but preserves the original output structure. No table conversion, no labels, no color additions.
 
 ```bash
-axcli --raw kubectl logs my-pod
+a11y-bridge --raw kubectl logs my-pod
 ```
 
 ## --passthrough
@@ -111,7 +111,7 @@ axcli --raw kubectl logs my-pod
 Runs the command with `NO_COLOR=1` and `TERM=dumb` environment variables set but does not process the output at all.
 
 ```bash
-axcli --passthrough git diff
+a11y-bridge --passthrough git diff
 ```
 
 ## AI Mode (--askai)
@@ -119,19 +119,19 @@ axcli --passthrough git diff
 Start an interactive session where natural language is converted to CLI commands:
 
 ```bash
-axcli --askai gh
-axcli --askai oc
-axcli --askai kubectl
+a11y-bridge --askai gh
+a11y-bridge --askai oc
+a11y-bridge --askai kubectl
 ```
 
 ### AI Environment Variables
 
 | Variable | Required | Description |
 |---|---|---|
-| `AXCLI_AI_KEY` | Yes (unless Ollama) | API key for the AI provider |
-| `AXCLI_AI_PROVIDER` | No | Explicit provider: `anthropic`, `openai`, `ollama`. Auto-detected if not set. |
-| `AXCLI_AI_URL` | No | Custom API endpoint (default: provider's standard URL, or `http://localhost:11434` for Ollama) |
-| `AXCLI_MODEL` | No | Model name override (default: `claude-sonnet-4-6` for Anthropic, `gpt-4o-mini` for OpenAI, `qwen2.5-coder:7b-instruct` for Ollama) |
+| `A11Y_AI_KEY` | Yes (unless Ollama) | API key for the AI provider |
+| `A11Y_AI_PROVIDER` | No | Explicit provider: `anthropic`, `openai`, `ollama`. Auto-detected if not set. |
+| `A11Y_AI_URL` | No | Custom API endpoint (default: provider's standard URL, or `http://localhost:11434` for Ollama) |
+| `A11Y_MODEL` | No | Model name override (default: `claude-sonnet-4-6` for Anthropic, `gpt-4o-mini` for OpenAI, `qwen2.5-coder:7b-instruct` for Ollama) |
 
 Provider-specific keys are also supported as fallbacks:
 
@@ -142,8 +142,8 @@ Provider-specific keys are also supported as fallbacks:
 
 ### Provider Detection Priority
 
-1. `AXCLI_AI_PROVIDER` env var (explicit)
-2. `AXCLI_AI_KEY` + `AXCLI_AI_URL` (provider inferred from URL)
+1. `A11Y_AI_PROVIDER` env var (explicit)
+2. `A11Y_AI_KEY` + `A11Y_AI_URL` (provider inferred from URL)
 3. `ANTHROPIC_API_KEY` (Anthropic)
 4. `OPENAI_API_KEY` (OpenAI)
 5. Ollama running on localhost:11434 (auto-detected, no key needed)
@@ -152,12 +152,12 @@ Provider-specific keys are also supported as fallbacks:
 
 ```bash
 # Claude (Anthropic)
-export AXCLI_AI_KEY=sk-ant-...
-export AXCLI_AI_PROVIDER=anthropic
+export A11Y_AI_KEY=sk-ant-...
+export A11Y_AI_PROVIDER=anthropic
 
 # OpenAI
-export AXCLI_AI_KEY=sk-...
-export AXCLI_AI_PROVIDER=openai
+export A11Y_AI_KEY=sk-...
+export A11Y_AI_PROVIDER=openai
 
 # Local Ollama (no key, no provider — auto-detected)
 # Install from https://ollama.com/download, then:
@@ -166,12 +166,12 @@ ollama pull qwen2.5-coder:7b-instruct   # ~4.7GB download, one-time &
 ollama pull qwen2.5-coder:7b-instruct
 
 # Azure OpenAI or other compatible endpoint
-export AXCLI_AI_KEY=your-key
-export AXCLI_AI_PROVIDER=openai
-export AXCLI_AI_URL=https://your-endpoint.openai.azure.com/v1
+export A11Y_AI_KEY=your-key
+export A11Y_AI_PROVIDER=openai
+export A11Y_AI_URL=https://your-endpoint.openai.azure.com/v1
 
 # Custom model
-export AXCLI_MODEL=claude-opus-4-20250514
+export A11Y_MODEL=claude-opus-4-20250514
 ```
 
 ### Safety Classification
@@ -194,13 +194,13 @@ export AXCLI_MODEL=claude-opus-4-20250514
 
 ## Screen Reader Detection
 
-axcli automatically detects screen reader usage:
+a11y-bridge automatically detects screen reader usage:
 
 | Signal | Triggers accessible mode |
 |---|---|
 | `NO_COLOR` env var set (non-empty) | Yes |
 | `TERM=dumb` | Yes |
-| `AXCLI_SCREEN_READER=1` env var | Yes |
+| `A11Y_SCREEN_READER=1` env var | Yes |
 | `orca` process running (Linux) | Yes |
 | `nvda` or `jaws` process running (Windows) | Yes |
 | None of the above | No — sighted mode |
@@ -208,17 +208,17 @@ axcli automatically detects screen reader usage:
 To force screen reader mode without setting global env vars:
 
 ```bash
-AXCLI_SCREEN_READER=1 axcli oc get pods
+A11Y_SCREEN_READER=1 a11y-bridge oc get pods
 ```
 
 ## Pipe Behavior
 
-When stdout is not a terminal (piped or redirected), axcli strips ANSI but passes output through without labels, colors, or reformatting:
+When stdout is not a terminal (piped or redirected), a11y-bridge strips ANSI but passes output through without labels, colors, or reformatting:
 
 ```bash
-axcli oc get pods              # Adaptive (terminal)
-axcli oc get pods | grep nginx  # Raw stripped output (pipe)
-axcli oc get pods > pods.txt    # Raw stripped output (file)
+a11y-bridge oc get pods              # Adaptive (terminal)
+a11y-bridge oc get pods | grep nginx  # Raw stripped output (pipe)
+a11y-bridge oc get pods > pods.txt    # Raw stripped output (file)
 ```
 
 ## Sighted Mode Color Map
@@ -250,7 +250,7 @@ axcli oc get pods > pods.txt    # Raw stripped output (file)
 
 | Prefix | Meaning |
 |---|---|
-| `status:` | What axcli is doing (the command being run) |
+| `status:` | What a11y-bridge is doing (the command being run) |
 | `result:` | Successful command output |
 | `error:` | Error messages from the wrapped command |
 | `[ERROR]` | Injected by color interpretation (was red) |
