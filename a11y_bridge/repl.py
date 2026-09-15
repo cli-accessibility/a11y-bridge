@@ -281,8 +281,13 @@ def _try_raw_command(user_input: str, binary: str) -> list[str] | None:
         "pr", "issue", "repo", "run", "release", "gist", "api",
         "completion", "help",
     }
-    if first in raw_verbs:
-        return [binary] + parts
+    # Must be lowercase (CLI verbs are lowercase; "Get me..." is natural language)
+    # and the second word (if any) must not be a natural language word
+    nl_words = {"me", "my", "the", "a", "an", "all", "any", "some", "this", "that",
+                "what", "which", "how", "where", "when", "who", "if", "about", "of"}
+    if first in raw_verbs and parts[0] == first:  # case-sensitive: "get" not "Get"
+        if len(parts) < 2 or parts[1].lower() not in nl_words:
+            return [binary] + parts
 
     return None
 
